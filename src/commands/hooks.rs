@@ -47,7 +47,7 @@ pub fn run(args: &HooksArgs, verbose: bool) {
         error!("hooks can only be invoked inside a git repo");
         exit(1);
     }
-    info!("✅ Step 2: Confirmed inside a Git repository");
+    info!("✓ Step 2: Confirmed inside a Git repository");
 
     // Step 3: Define hooks directory
     info!("Step 3: Setting up hooks directory");
@@ -56,7 +56,7 @@ pub fn run(args: &HooksArgs, verbose: bool) {
         error!("Failed to create hooks directory: {}", e);
         exit(1);
     });
-    info!("✅ Step 3: Hooks directory ready at {:?}", hooks_dir);
+    info!("✓ Step 3: Hooks directory ready at {:?}", hooks_dir);
 
     // Step 4: Prompt for post-commit hook
     let post_commit_path = hooks_dir.join("post-commit");
@@ -103,7 +103,7 @@ git trunk sync --force
                     exit(1);
                 });
         }
-        info!("✅ Step 4: Post-commit hook installed");
+        info!("✓ Step 4: Post-commit hook installed");
     } else {
         info!("Step 4: Skipped post-commit hook installation");
     }
@@ -162,12 +162,12 @@ exit 0
                     exit(1);
                 });
         }
-        info!("✅ Step 5: Pre-push hook installed");
+        info!("✓ Step 5: Pre-push hook installed");
     } else {
         info!("Step 5: Skipped pre-push hook installation");
     }
 
-    info!("✅ Git hooks configuration completed");
+    info!("✓ Git hooks configuration completed");
 }
 
 fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {

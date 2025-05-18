@@ -38,7 +38,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
         error!(".trunk directory not found. Run `git trunk init` first.");
         exit(1);
     }
-    info!("✅ Step 2: .trunk directory found");
+    info!("✓ Step 2: .trunk directory found");
 
     // Step 3: Check if .trunk has files to be staged
     info!("Step 3: Checking for changes in .trunk");
@@ -100,7 +100,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
                 error!("git add failed in .trunk");
                 exit(1);
             }
-            info!("✅ Step 4: Files staged");
+            info!("✓ Step 4: Files staged");
 
             // Step 5: Commit staged files
             info!("Step 5: Committing staged changes");
@@ -121,7 +121,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
             if !commit_status.success() {
                 info!("Step 5: No changes to commit in .trunk");
             } else {
-                info!("✅ Step 5: Changes committed");
+                info!("✓ Step 5: Changes committed");
             }
         }
     }
@@ -162,7 +162,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
         error!("git fetch failed from .trunk");
         exit(1);
     }
-    info!("✅ Step 7: Objects fetched");
+    info!("✓ Step 7: Objects fetched");
 
     // Step 8: Update refs/trunk/main
     info!("Step 8: Checking if refs/trunk/main exists");
@@ -212,12 +212,12 @@ pub fn run(args: &SyncArgs, verbose: bool) {
     }
 
     if ref_exists {
-        info!("✅ Step 8: Updated refs/trunk/main to commit {}", commit_hash);
+        info!("✓ Step 8: Updated refs/trunk/main to commit {}", commit_hash);
     } else {
-        info!("✅ Step 8: Created refs/trunk/main at commit {}", commit_hash);
+        info!("✓ Step 8: Created refs/trunk/main at commit {}", commit_hash);
     }
 
-    info!("✅ Trunk synced successfully");
+    info!("✓ Trunk synced successfully");
 }
 
 fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {

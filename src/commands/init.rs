@@ -28,7 +28,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
         error!("init can only be invoked inside a git repo");
         exit(1);
     }
-    info!("✅ Step 1: Confirmed inside a Git repository");
+    info!("✓ Step 1: Confirmed inside a Git repository");
 
     // Step 2: Get repository root
     info!("Step 2: Getting repository root");
@@ -81,7 +81,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
                 exit(1);
             });
         writeln!(gitignore_file, ".trunk").expect("Failed to write .trunk to .gitignore");
-        info!("✅ Step 3: Added .trunk to .gitignore");
+        info!("✓ Step 3: Added .trunk to .gitignore");
     } else {
         info!("Step 3: .trunk already in .gitignore");
     }
@@ -96,7 +96,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
                 error!("Failed to remove existing .trunk directory: {}", e);
                 exit(1);
             });
-            info!("✅ Step 4: Existing .trunk directory removed");
+            info!("✓ Step 4: Existing .trunk directory removed");
         } else {
             info!("Step 4: Trunk is already initialized in this repository");
             return;
@@ -107,7 +107,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
         error!("Failed to create .trunk directory: {}", e);
         exit(1);
     });
-    info!("✅ Step 4: .trunk directory created");
+    info!("✓ Step 4: .trunk directory created");
 
     // Step 5: Create .trunk/readme.md
     info!("Step 5: Creating .trunk/readme.md");
@@ -121,7 +121,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
         "# Trunk Documents\n\nThis directory stores repository-wide documents managed by git-trunk."
     )
     .expect("Failed to write to readme.md");
-    info!("✅ Step 5: Created .trunk/readme.md");
+    info!("✓ Step 5: Created .trunk/readme.md");
 
     // Step 6: Initialize Git in .trunk
     info!("Step 6: Initializing Git repository in .trunk");
@@ -140,7 +140,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
         error!("git init failed in .trunk");
         exit(1);
     }
-    info!("✅ Step 6: Git repository initialized");
+    info!("✓ Step 6: Git repository initialized");
 
     // Step 7: Stage files in .trunk
     info!("Step 7: Staging files in .trunk");
@@ -160,7 +160,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
         error!("git add failed in .trunk");
         exit(1);
     }
-    info!("✅ Step 7: Files staged");
+    info!("✓ Step 7: Files staged");
 
     // Step 8: Commit files in .trunk
     info!("Step 8: Committing initial trunk changes");
@@ -181,9 +181,9 @@ pub fn run(args: &InitArgs, verbose: bool) {
         error!("git commit failed in .trunk");
         exit(1);
     }
-    info!("✅ Step 8: Initial commit created");
+    info!("✓ Step 8: Initial commit created");
 
-    info!("✅ Trunk initialized successfully");
+    info!("✓ Trunk initialized successfully");
 }
 
 fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {

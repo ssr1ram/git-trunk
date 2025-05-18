@@ -31,7 +31,7 @@ pub fn run(args: &PushArgs, verbose: bool) {
         error!("refs/trunk/main does not exist in the repository");
         exit(1);
     }
-    info!("✅ Step 1: refs/trunk/main found locally");
+    info!("✓ Step 1: refs/trunk/main found locally");
 
     // Step 2: Push refs/trunk/main to the remote
     info!("Step 2: Pushing refs/trunk/main to remote '{}'", args.remote);
@@ -55,7 +55,7 @@ pub fn run(args: &PushArgs, verbose: bool) {
         exit(1);
     }
 
-    info!("✅ Step 2: Successfully pushed refs/trunk/main to {}", args.remote);
+    info!("✓ Step 2: Successfully pushed refs/trunk/main to {}", args.remote);
 }
 
 fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {
