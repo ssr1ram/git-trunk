@@ -2,9 +2,17 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::{Command, exit};
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(about = "Clone the trunk from refs/trunk/main into .trunk")]
+pub struct CloneArgs {
+    #[arg(long, help = "Force cloning, overwriting existing .trunk directory")]
+    force: bool,
+}
 
 #[allow(dead_code)]
-pub fn clone() {
+pub fn run(args: &CloneArgs) {
     // Step 1: Get repository root
     let repo_root_output = Command::new("git")
         .arg("rev-parse")
@@ -17,36 +25,85 @@ pub fn clone() {
     let repo_root_temp = String::from_utf8_lossy(&repo_root_output.stdout);
     let repo_root = repo_root_temp.trim().to_string();
 
-    // Step 2: Check if refs/trunk/main exists
-    let ref_check_output = Command::new("git")
+    // Step 2: Check if refs/trunk/main exists locally
+    let local_ref_check = Command::new("git")
         .arg("rev-parse")
         .arg("--verify")
         .arg("refs/trunk/main")
         .current_dir(&repo_root)
         .output();
-    if ref_check_output
+    let local_ref_exists = local_ref_check
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+
+    if !local_ref_exists {
+        // Step 3: Check if refs/trunk/main exists on the remote
+        let remote_ref_check = Command::new("git")
+            .arg("ls-remote")
+            .arg("origin")
+            .arg("refs/trunk/main")
+            .current_dir(&repo_root)
+            .output();
+        let remote_ref_check = remote_ref_check.unwrap_or_else(|e| {
+            eprintln!("\u{274C} Failed to check refs/trunk/main on remote: {}", e);
+            exit(1);
+        });
+        if !remote_ref_check.status.success() || remote_ref_check.stdout.is_empty() {
+            eprintln!("\u{274C} refs/trunk/main does not exist in the repository or on the remote (origin). Ensure it was pushed with `git trunk push`.");
+            exit(1);
+        }
+
+        // Step 4: Fetch refs/trunk/main from origin
+        let fetch_status = Command::new("git")
+            .arg("fetch")
+            .arg("origin")
+            .arg("refs/trunk/main:refs/trunk/main")
+            .current_dir(&repo_root)
+            .status();
+        let fetch_status = fetch_status.unwrap_or_else(|e| {
+            eprintln!("\u{274C} Failed to fetch refs/trunk/main from origin: {}", e);
+            exit(1);
+        });
+        if !fetch_status.success() {
+            eprintln!("\u{274C} Failed to fetch refs/trunk/main from origin. Check remote configuration and network connectivity.");
+            exit(1);
+        }
+    }
+
+    // Step 5: Verify refs/trunk/main exists locally after fetch (if needed)
+    let final_ref_check = Command::new("git")
+        .arg("rev-parse")
+        .arg("--verify")
+        .arg("refs/trunk/main")
+        .current_dir(&repo_root)
+        .output();
+    if final_ref_check
         .map(|output| !output.status.success())
         .unwrap_or(true)
     {
-        eprintln!("\u{274C} refs/trunk/main does not exist in this repository.");
+        eprintln!("\u{274C} refs/trunk/main is still missing after attempting to fetch. Ensure it was pushed to the remote.");
         exit(1);
     }
 
-    // Step 3: Check if .trunk exists
+    // Step 6: Check if .trunk exists
     let trunk_dir = Path::new(&repo_root).join(".trunk");
     if trunk_dir.exists() {
-        // Step 4: Prompt user to overwrite
-        println!("The .trunk directory already exists.");
-        print!("Overwrite existing .trunk directory? [y/N]: ");
-        io::stdout().flush().expect("Failed to flush stdout");
+        let should_overwrite = if args.force {
+            true
+        } else {
+            println!("The .trunk directory already exists.");
+            print!("Overwrite existing .trunk directory? [y/N]: ");
+            io::stdout().flush().expect("Failed to flush stdout");
 
-        let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read user input");
-        let input = input.trim().to_lowercase();
+            let mut input = String::new();
+            io::stdin()
+                .read_line(&mut input)
+                .expect("Failed to read user input");
+            let input = input.trim().to_lowercase();
+            input == "y" || input == "yes"
+        };
 
-        if input != "y" && input != "yes" {
+        if !should_overwrite {
             println!("Clone aborted by user.");
             exit(0);
         }
@@ -58,13 +115,13 @@ pub fn clone() {
         });
     }
 
-    // Step 5: Create .trunk directory
+    // Step 7: Create .trunk directory
     fs::create_dir(&trunk_dir).unwrap_or_else(|e| {
         eprintln!("\u{274C} Failed to create .trunk directory: {}", e);
         exit(1);
     });
 
-    // Step 6: Initialize Git repository in .trunk
+    // Step 8: Initialize Git repository in .trunk
     let init_status = Command::new("git")
         .arg("init")
         .current_dir(&trunk_dir)
@@ -78,7 +135,7 @@ pub fn clone() {
         exit(1);
     }
 
-    // Step 7: Fetch history from refs/trunk/main into a temporary ref
+    // Step 9: Fetch history from refs/trunk/main into a temporary ref
     let fetch_status = Command::new("git")
         .arg("fetch")
         .arg(&repo_root)
@@ -94,7 +151,7 @@ pub fn clone() {
         exit(1);
     }
 
-    // Step 8: Get the fetched commit hash
+    // Step 10: Get the fetched commit hash
     let commit_hash_output = Command::new("git")
         .arg("rev-parse")
         .arg("refs/temp/trunk")
@@ -112,7 +169,7 @@ pub fn clone() {
         .trim()
         .to_string();
 
-    // Step 9: Reset main branch to the fetched commit
+    // Step 11: Reset main branch to the fetched commit
     let reset_status = Command::new("git")
         .arg("reset")
         .arg("--hard")
@@ -128,7 +185,7 @@ pub fn clone() {
         exit(1);
     }
 
-    // Step 10: Update main branch ref
+    // Step 12: Update main branch ref
     let update_ref_status = Command::new("git")
         .arg("update-ref")
         .arg("refs/heads/main")
@@ -144,7 +201,7 @@ pub fn clone() {
         exit(1);
     }
 
-    // Step 11: Clean up temporary ref
+    // Step 13: Clean up temporary ref
     if let Err(e) = Command::new("git")
         .arg("update-ref")
         .arg("-d")

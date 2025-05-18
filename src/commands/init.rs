@@ -2,8 +2,16 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, exit};
+use clap::Parser;
 
-pub fn init() {
+#[derive(Parser, Debug)]
+#[command(about = "Initialize the .trunk directory")]
+pub struct InitArgs {
+    #[arg(long, help = "Force initialization, overwriting existing .trunk directory")]
+    force: bool,
+}
+
+pub fn run(args: &InitArgs) {
     // Step 1: Check if we are in a Git repository
     let git_check_output = Command::new("git")
         .arg("rev-parse")
@@ -25,7 +33,6 @@ pub fn init() {
         .output()
         .expect("Failed to get git repository root");
     
-    // Fix: Bind the String::from_utf8_lossy result and convert to owned String
     let repo_root_temp = String::from_utf8_lossy(&repo_root_output.stdout);
     let repo_root = repo_root_temp.trim().to_string();
 
@@ -59,8 +66,12 @@ pub fn init() {
     // Step 4: Create .trunk directory
     let trunk_dir = Path::new(&repo_root).join(".trunk");
     if trunk_dir.exists() {
-        println!("Trunk is already initialized in this repository.");
-        return;
+        if args.force {
+            fs::remove_dir_all(&trunk_dir).expect("Failed to remove existing .trunk directory");
+        } else {
+            println!("Trunk is already initialized in this repository.");
+            return;
+        }
     }
     fs::create_dir(&trunk_dir).expect("Failed to create .trunk directory");
 

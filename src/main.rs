@@ -13,19 +13,22 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Initializes the git-trunk in the current repository
-    Init,
+    Init(commands::init::InitArgs),
     /// Syncs changes from .trunk to the main repository
-    Sync,
+    Sync(commands::sync::SyncArgs),
     /// Clones the trunk from refs/trunk/main into .trunk
-    Clone,
+    Clone(commands::clone::CloneArgs),
+    /// Pushes the objects from refs/trunk/main to remote (default origin)
+    Push(commands::push::PushArgs),
 }
 
 fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Init => commands::init::init(),
-        Commands::Sync => commands::sync::sync(),
-        Commands::Clone => commands::clone::clone(),
+        Commands::Init(args) => commands::init::run(&args),
+        Commands::Sync(args) => commands::sync::run(&args),
+        Commands::Clone(args) => commands::clone::run(&args),
+        Commands::Push(args) => commands::push::run(&args),
     }
 }

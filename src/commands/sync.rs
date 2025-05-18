@@ -1,9 +1,17 @@
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::{Command, exit};
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(about = "Sync changes from .trunk to the main repository")]
+pub struct SyncArgs {
+    #[arg(long, help = "Skip interactive prompts and stage all changes")]
+    force: bool,
+}
 
 #[allow(dead_code)]
-pub fn sync() {
+pub fn run(args: &SyncArgs) {
     // Step 1: Get repository root
     let repo_root_output = Command::new("git")
         .arg("rev-parse")
@@ -37,18 +45,23 @@ pub fn sync() {
     if status.is_empty() {
         println!("No changes to stage in .trunk.");
     } else {
-        // Step 3: Ask user to stage all files
-        println!("Changes detected in .trunk:\n{}", status);
-        print!("Stage all files? [y/N]: ");
-        io::stdout().flush().expect("Failed to flush stdout");
+        // Step 3: Ask user to stage all files (unless --force)
+        let should_stage = if args.force {
+            true
+        } else {
+            println!("Changes detected in .trunk:\n{}", status);
+            print!("Stage all files? [y/N]: ");
+            io::stdout().flush().expect("Failed to flush stdout");
 
-        let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read user input");
-        let input = input.trim().to_lowercase();
+            let mut input = String::new();
+            io::stdin()
+                .read_line(&mut input)
+                .expect("Failed to read user input");
+            let input = input.trim().to_lowercase();
+            input == "y" || input == "yes"
+        };
 
-        if input != "y" && input != "yes" {
+        if !should_stage {
             println!("Sync aborted by user.");
             exit(0);
         }
