@@ -20,6 +20,8 @@ enum Commands {
     Clone(commands::clone::CloneArgs),
     /// Pushes the objects from refs/trunk/main to remote (default origin)
     Push(commands::push::PushArgs),
+    /// Manages Git hooks for git-trunk
+    Hooks(commands::hooks::HooksArgs),
 }
 
 fn main() {
@@ -30,5 +32,6 @@ fn main() {
         Commands::Sync(args) => commands::sync::run(&args),
         Commands::Clone(args) => commands::clone::run(&args),
         Commands::Push(args) => commands::push::run(&args),
+        Commands::Hooks(args) => commands::hooks::run(&args),
     }
 }

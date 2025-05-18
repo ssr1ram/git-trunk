@@ -127,34 +127,5 @@ pub fn run(args: &InitArgs) {
         .expect("Failed to run git commit in .trunk");
     println!("\u{1F418} Step 8: Initial commit created");
 
-    // Step 9: Create pre-push hook
-    println!("\u{1F418} Step 9: Creating pre-push hook");
-    let hooks_dir = Path::new(&repo_root).join(".git").join("hooks");
-    let pre_push_path = hooks_dir.join("pre-push");
-    let hook_content = r#"#!/bin/sh
-# Pre-push hook to ensure refs/trunk/main is pushed
-remote="$1"
-url="$2"
-
-while read local_ref local_sha remote_ref remote_sha
-do
-    if [ "$local_ref" = "refs/heads/main" ]; then
-        git push "$remote" refs/trunk/main:refs/trunk/main
-    fi
-done
-exit 0
-"#;
-
-    fs::create_dir_all(&hooks_dir).expect("Failed to create hooks directory");
-    let mut pre_push_file = File::create(&pre_push_path).expect("Failed to create pre-push hook");
-    writeln!(pre_push_file, "{}", hook_content).expect("Failed to write pre-push hook");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&pre_push_path, fs::Permissions::from_mode(0o755))
-            .expect("Failed to set executable permissions on pre-push hook");
-    }
-    println!("\u{1F418} Step 9: Pre-push hook created");
-
     println!("\u{1F418} Trunk initialized successfully");
 }
