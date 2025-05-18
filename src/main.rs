@@ -14,6 +14,10 @@ struct Cli {
 enum Commands {
     /// Initializes the git-trunk in the current repository
     Init,
+    /// Syncs changes from .trunk to the main repository
+    Sync,
+    /// Clones the trunk from refs/trunk/main into .trunk
+    Clone,
 }
 
 fn main() {
@@ -21,5 +25,7 @@ fn main() {
 
     match cli.command {
         Commands::Init => commands::init::init(),
+        Commands::Sync => commands::sync::sync(),
+        Commands::Clone => commands::clone::clone(),
     }
 }
