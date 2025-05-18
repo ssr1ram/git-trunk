@@ -14,21 +14,24 @@ pub struct PushArgs {
 
 #[allow(dead_code)]
 pub fn run(args: &PushArgs) {
-    // Verify that refs/trunk/main exists
+    // Step 1: Verify that refs/trunk/main exists
+    println!("\u{1F418} Step 1: Checking if refs/trunk/main exists locally");
     let show_ref = Command::new("git")
         .args(["show-ref", "--quiet", "refs/trunk/main"])
         .status()
         .unwrap_or_else(|e| {
-            eprintln!("Error checking refs/trunk/main: {}", e);
+            eprintln!("\u{1F418} Error: Failed to check refs/trunk/main: {}", e);
             std::process::exit(1);
         });
 
     if !show_ref.success() {
-        eprintln!("Error: refs/trunk/main does not exist in the repository");
+        eprintln!("\u{1F418} Error: refs/trunk/main does not exist in the repository");
         std::process::exit(1);
     }
+    println!("\u{1F418} Step 1: refs/trunk/main found locally");
 
-    // Push refs/trunk/main to the remote
+    // Step 2: Push refs/trunk/main to the remote
+    println!("\u{1F418} Step 2: Pushing refs/trunk/main to remote '{}'", args.remote);
     let push = Command::new("git")
         .args([
             "push",
@@ -37,17 +40,17 @@ pub fn run(args: &PushArgs) {
         ])
         .status()
         .unwrap_or_else(|e| {
-            eprintln!("Error executing git push: {}", e);
+            eprintln!("\u{1F418} Error: Failed to execute git push: {}", e);
             std::process::exit(1);
         });
 
     if !push.success() {
         eprintln!(
-            "Error: Failed to push refs/trunk/main to remote '{}'",
+            "\u{1F418} Error: Failed to push refs/trunk/main to remote '{}'",
             args.remote
         );
         std::process::exit(1);
     }
 
-    println!("Successfully pushed refs/trunk/main to {}", args.remote);
+    println!("\u{1F418} Step 2: Successfully pushed refs/trunk/main to {}", args.remote);
 }
