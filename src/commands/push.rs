@@ -16,7 +16,7 @@ pub struct PushArgs {
 
 pub fn run(args: &PushArgs, verbose: bool) {
     // Step 1: Verify that refs/trunk/main exists
-    info!("Step 1: Checking if refs/trunk/main exists locally");
+    debug!("Step 1: Checking if refs/trunk/main exists locally");
     let show_ref = run_git_command(
         Command::new("git")
             .args(["show-ref", "--quiet", "refs/trunk/main"]),
@@ -34,7 +34,7 @@ pub fn run(args: &PushArgs, verbose: bool) {
     info!("✓ Step 1: refs/trunk/main found locally");
 
     // Step 2: Push refs/trunk/main to the remote
-    info!("Step 2: Pushing refs/trunk/main to remote '{}'", args.remote);
+    debug!("Step 2: Pushing refs/trunk/main to remote '{}'", args.remote);
     let push = run_git_command(
         Command::new("git")
             .args([
@@ -56,6 +56,7 @@ pub fn run(args: &PushArgs, verbose: bool) {
     }
 
     info!("✓ Step 2: Successfully pushed refs/trunk/main to {}", args.remote);
+    info!("✅ Trunk pushed successfully")
 }
 
 fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {

@@ -14,7 +14,7 @@ pub struct InitArgs {
 
 pub fn run(args: &InitArgs, verbose: bool) {
     // Step 1: Check if we are in a Git repository
-    info!("Step 1: Checking if inside a Git repository");
+    debug!("Step 1: Checking if inside a Git repository");
     let git_check_output = run_git_command(
         Command::new("git")
             .arg("rev-parse")
@@ -31,7 +31,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
     info!("✓ Step 1: Confirmed inside a Git repository");
 
     // Step 2: Get repository root
-    info!("Step 2: Getting repository root");
+    debug!("Step 2: Getting repository root");
     let repo_root_output = run_git_command(
         Command::new("git")
             .arg("rev-parse")
@@ -47,10 +47,10 @@ pub fn run(args: &InitArgs, verbose: bool) {
         error!("Git repository root is empty. Ensure you are in a valid Git repository.");
         exit(1);
     }
-    info!("Step 2: Repository root found at {}", repo_root);
+    info!("✓ Step 2: Repository root found at {}", repo_root);
 
     // Step 3: Ensure .trunk is in .gitignore
-    info!("Step 3: Checking .gitignore for .trunk entry");
+    debug!("Step 3: Checking .gitignore for .trunk entry");
     let gitignore_path = Path::new(&repo_root).join(".gitignore");
     let mut gitignore_content = String::new();
     let mut gitignore_needs_update = false;
@@ -71,7 +71,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
     }
 
     if gitignore_needs_update {
-        info!("Step 3: Adding .trunk to .gitignore");
+        debug!("Step 3: Adding .trunk to .gitignore");
         let mut gitignore_file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -83,26 +83,26 @@ pub fn run(args: &InitArgs, verbose: bool) {
         writeln!(gitignore_file, ".trunk").expect("Failed to write .trunk to .gitignore");
         info!("✓ Step 3: Added .trunk to .gitignore");
     } else {
-        info!("Step 3: .trunk already in .gitignore");
+        debug!("Step 3: .trunk already in .gitignore");
     }
 
     // Step 4: Create .trunk directory
-    info!("Step 4: Checking for .trunk directory");
+    debug!("Step 4: Checking for .trunk directory");
     let trunk_dir = Path::new(&repo_root).join(".trunk");
     if trunk_dir.exists() {
         if args.force {
-            info!("Step 4: .trunk exists, --force specified, removing existing directory");
+            debug!("Step 4: .trunk exists, --force specified, removing existing directory");
             fs::remove_dir_all(&trunk_dir).unwrap_or_else(|e| {
                 error!("Failed to remove existing .trunk directory: {}", e);
                 exit(1);
             });
             info!("✓ Step 4: Existing .trunk directory removed");
         } else {
-            info!("Step 4: Trunk is already initialized in this repository");
+            info!("= Step 4: Trunk is already initialized in this repository");
             return;
         }
     }
-    info!("Step 4: Creating .trunk directory");
+    debug!("Step 4: Creating .trunk directory");
     fs::create_dir(&trunk_dir).unwrap_or_else(|e| {
         error!("Failed to create .trunk directory: {}", e);
         exit(1);
@@ -110,7 +110,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
     info!("✓ Step 4: .trunk directory created");
 
     // Step 5: Create .trunk/readme.md
-    info!("Step 5: Creating .trunk/readme.md");
+    debug!("Step 5: Creating .trunk/readme.md");
     let readme_path = trunk_dir.join("readme.md");
     let mut readme_file = File::create(&readme_path).unwrap_or_else(|e| {
         error!("Failed to create readme.md: {}", e);
@@ -124,7 +124,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
     info!("✓ Step 5: Created .trunk/readme.md");
 
     // Step 6: Initialize Git in .trunk
-    info!("Step 6: Initializing Git repository in .trunk");
+    debug!("Step 6: Initializing Git repository in .trunk");
     let init_status = run_git_command(
         Command::new("git")
             .arg("init")
@@ -143,7 +143,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
     info!("✓ Step 6: Git repository initialized");
 
     // Step 7: Stage files in .trunk
-    info!("Step 7: Staging files in .trunk");
+    debug!("Step 7: Staging files in .trunk");
     let stage_status = run_git_command(
         Command::new("git")
             .arg("add")
@@ -163,7 +163,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
     info!("✓ Step 7: Files staged");
 
     // Step 8: Commit files in .trunk
-    info!("Step 8: Committing initial trunk changes");
+    debug!("Step 8: Committing initial trunk changes");
     let commit_status = run_git_command(
         Command::new("git")
             .arg("commit")
@@ -183,7 +183,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
     }
     info!("✓ Step 8: Initial commit created");
 
-    info!("✓ Trunk initialized successfully");
+    info!("✅ Trunk initialized successfully");
 }
 
 fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {

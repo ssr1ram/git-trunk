@@ -273,7 +273,7 @@ pub fn run(args: &CloneArgs, verbose: bool) {
     }
     info!("✓ Step 13: Temporary ref cleaned up");
 
-    info!("✓ Trunk cloned successfully");
+    info!("✅ Trunk cloned successfully");
 }
 
 // Helper function to run Git commands and handle output

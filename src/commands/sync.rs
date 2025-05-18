@@ -13,7 +13,7 @@ pub struct SyncArgs {
 
 pub fn run(args: &SyncArgs, verbose: bool) {
     // Step 1: Get repository root
-    info!("Step 1: Getting repository root");
+    debug!("Step 1: Getting repository root");
     let repo_root_output = run_git_command(
         Command::new("git")
             .arg("rev-parse")
@@ -29,10 +29,10 @@ pub fn run(args: &SyncArgs, verbose: bool) {
         error!("Git repository root is empty. Ensure you are in a valid Git repository.");
         exit(1);
     }
-    info!("Step 1: Repository root found at {}", repo_root);
+    info!("✓ Step 1: Repository root found at {}", repo_root);
 
     // Step 2: Check if .trunk exists
-    info!("Step 2: Checking for .trunk directory");
+    debug!("Step 2: Checking for .trunk directory");
     let trunk_dir = Path::new(&repo_root).join(".trunk");
     if !trunk_dir.exists() {
         error!(".trunk directory not found. Run `git trunk init` first.");
@@ -41,7 +41,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
     info!("✓ Step 2: .trunk directory found");
 
     // Step 3: Check if .trunk has files to be staged
-    info!("Step 3: Checking for changes in .trunk");
+    debug!("Step 3: Checking for changes in .trunk");
     let status_output = run_git_command(
         Command::new("git")
             .arg("status")
@@ -56,15 +56,15 @@ pub fn run(args: &SyncArgs, verbose: bool) {
 
     let status = String::from_utf8_lossy(&status_output.stdout);
     if status.is_empty() {
-        info!("Step 3: No changes to stage in .trunk");
+        info!("= Step 3: No changes to stage in .trunk");
     } else {
         // Step 4: Ask user to stage all files (unless --force)
         let should_stage = if args.force {
-            info!("Step 4: --force specified, staging all changes");
+            debug!("Step 4: --force specified, staging all changes");
             true
         } else {
-            info!("Step 4: Changes detected in .trunk:\n{}", status);
-            print!("🐘 Stage all files? [y/N]: ");
+            info!("≠ Step 4: Changes detected in .trunk:\n{}", status);
+            print!("🐘︖ Stage all files? [y/N]: ");
             io::stdout().flush().expect("Failed to flush stdout");
 
             let mut input = String::new();
@@ -73,7 +73,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
                 .expect("Failed to read user input");
             let input = input.trim().to_lowercase();
             if input == "y" || input == "yes" {
-                info!("Step 4: User confirmed staging");
+                debug!("Step 4: User confirmed staging");
                 true
             } else {
                 info!("Step 4: Sync aborted by user");
@@ -83,7 +83,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
 
         if should_stage {
             // Stage all files
-            info!("Step 4: Staging all files in .trunk");
+            debug!("Step 4: Staging all files in .trunk");
             let stage_status = run_git_command(
                 Command::new("git")
                     .arg("add")
@@ -103,7 +103,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
             info!("✓ Step 4: Files staged");
 
             // Step 5: Commit staged files
-            info!("Step 5: Committing staged changes");
+            debug!("Step 5: Committing staged changes");
             let commit_status = run_git_command(
                 Command::new("git")
                     .arg("commit")
@@ -119,7 +119,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
             .status;
 
             if !commit_status.success() {
-                info!("Step 5: No changes to commit in .trunk");
+                info!("= Step 5: No changes to commit in .trunk");
             } else {
                 info!("✓ Step 5: Changes committed");
             }
@@ -127,7 +127,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
     }
 
     // Step 6: Get the latest commit hash from .trunk
-    info!("Step 6: Getting latest commit hash from .trunk");
+    debug!("Step 6: Getting latest commit hash from .trunk");
     let commit_hash_output = run_git_command(
         Command::new("git")
             .arg("rev-parse")
@@ -140,10 +140,10 @@ pub fn run(args: &SyncArgs, verbose: bool) {
         exit(1);
     });
     let commit_hash = String::from_utf8_lossy(&commit_hash_output.stdout).trim().to_string();
-    info!("Step 6: Commit hash: {}", commit_hash);
+    debug!("Step 6: Commit hash: {}", commit_hash);
 
     // Step 7: Fetch objects from .trunk to main repo
-    info!("Step 7: Fetching objects from .trunk to main repository");
+    debug!("Step 7: Fetching objects from .trunk to main repository");
     let fetch_status = run_git_command(
         Command::new("git")
             .arg("-C")
@@ -165,7 +165,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
     info!("✓ Step 7: Objects fetched");
 
     // Step 8: Update refs/trunk/main
-    info!("Step 8: Checking if refs/trunk/main exists");
+    debug!("Step 8: Checking if refs/trunk/main exists");
     let ref_exists = run_git_command(
         Command::new("git")
             .arg("rev-parse")
@@ -177,7 +177,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
     .map(|output| output.status.success())
     .unwrap_or(false);
 
-    info!("Step 8: Updating refs/trunk/main");
+    debug!("Step 8: Updating refs/trunk/main");
     let update_ref_status = run_git_command(
         Command::new("git")
             .arg("update-ref")
@@ -197,7 +197,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
     }
 
     // Step 9: Clean up temporary branch
-    info!("Step 9: Cleaning up temporary branch trunk-temp");
+    debug!("Step 9: Cleaning up temporary branch trunk-temp");
     let cleanup_status = run_git_command(
         Command::new("git")
             .arg("branch")
@@ -217,7 +217,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
         info!("✓ Step 8: Created refs/trunk/main at commit {}", commit_hash);
     }
 
-    info!("✓ Trunk synced successfully");
+    info!("✅ Trunk synced successfully");
 }
 
 fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {

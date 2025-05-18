@@ -14,7 +14,7 @@ pub struct HooksArgs {
 
 pub fn run(args: &HooksArgs, verbose: bool) {
     // Step 1: Get repository root
-    info!("Step 1: Getting repository root");
+    debug!("Step 1: Getting repository root");
     let repo_root_output = run_git_command(
         Command::new("git")
             .arg("rev-parse")
@@ -30,10 +30,10 @@ pub fn run(args: &HooksArgs, verbose: bool) {
         error!("Git repository root is empty. Ensure you are in a valid Git repository.");
         exit(1);
     }
-    info!("Step 1: Repository root found at {}", repo_root);
+    info!("✓ Step 1: Repository root found at {}", repo_root);
 
     // Step 2: Check if we are in a Git repository
-    info!("Step 2: Checking if inside a Git repository");
+    debug!("Step 2: Checking if inside a Git repository");
     let git_check_output = run_git_command(
         Command::new("git")
             .arg("rev-parse")
@@ -50,7 +50,7 @@ pub fn run(args: &HooksArgs, verbose: bool) {
     info!("✓ Step 2: Confirmed inside a Git repository");
 
     // Step 3: Define hooks directory
-    info!("Step 3: Setting up hooks directory");
+    debug!("Step 3: Setting up hooks directory");
     let hooks_dir = Path::new(&repo_root).join(".git").join("hooks");
     fs::create_dir_all(&hooks_dir).unwrap_or_else(|e| {
         error!("Failed to create hooks directory: {}", e);
@@ -61,7 +61,7 @@ pub fn run(args: &HooksArgs, verbose: bool) {
     // Step 4: Prompt for post-commit hook
     let post_commit_path = hooks_dir.join("post-commit");
     let install_post_commit = if post_commit_path.exists() && !args.force {
-        info!("Step 4: post-commit hook already exists");
+        debug!("Step 4: post-commit hook already exists");
         print!("🐘 Overwrite existing post-commit hook? [y/N]: ");
         io::stdout().flush().expect("Failed to flush stdout");
         let mut input = String::new();
@@ -71,7 +71,7 @@ pub fn run(args: &HooksArgs, verbose: bool) {
         let input = input.trim().to_lowercase();
         input == "y" || input == "yes"
     } else {
-        info!("Step 4: No post-commit hook found or --force specified");
+        debug!("Step 4: No post-commit hook found or --force specified");
         print!("🐘 Install post-commit hook to auto-sync .trunk after commits? [y/N]: ");
         io::stdout().flush().expect("Failed to flush stdout");
         let mut input = String::new();
@@ -83,7 +83,7 @@ pub fn run(args: &HooksArgs, verbose: bool) {
     };
 
     if install_post_commit {
-        info!("Step 4: Creating post-commit hook");
+        debug!("Step 4: Creating post-commit hook");
         let post_commit_content = r#"#!/bin/sh
 # Post-commit hook to auto-sync .trunk changes
 git trunk sync --force
@@ -111,7 +111,7 @@ git trunk sync --force
     // Step 5: Prompt for pre-push hook
     let pre_push_path = hooks_dir.join("pre-push");
     let install_pre_push = if pre_push_path.exists() && !args.force {
-        info!("Step 5: pre-push hook already exists");
+        debug!("Step 5: pre-push hook already exists");
         print!("🐘 Overwrite existing pre-push hook? [y/N]: ");
         io::stdout().flush().expect("Failed to flush stdout");
         let mut input = String::new();
@@ -121,7 +121,7 @@ git trunk sync --force
         let input = input.trim().to_lowercase();
         input == "y" || input == "yes"
     } else {
-        info!("Step 5: No pre-push hook found or --force specified");
+        debug!("Step 5: No pre-push hook found or --force specified");
         print!("🐘 Install pre-push hook to push refs/trunk/main with main? [y/N]: ");
         io::stdout().flush().expect("Failed to flush stdout");
         let mut input = String::new();
@@ -133,7 +133,7 @@ git trunk sync --force
     };
 
     if install_pre_push {
-        info!("Step 5: Creating pre-push hook");
+        debug!("Step 5: Creating pre-push hook");
         let pre_push_content = r#"#!/bin/sh
 # Pre-push hook to ensure refs/trunk/main is pushed
 remote="$1"
@@ -167,7 +167,7 @@ exit 0
         info!("Step 5: Skipped pre-push hook installation");
     }
 
-    info!("✓ Git hooks configuration completed");
+    info!("✅ Trunk hooks configuration completed");
 }
 
 fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {
