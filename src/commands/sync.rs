@@ -1,7 +1,8 @@
 use std::io::{self, Write};
 use std::path::Path;
-use std::process::{Command, exit};
+use std::process::{Command, exit, Stdio};
 use clap::Parser;
+use log::{debug, error, info};
 
 #[derive(Parser, Debug)]
 #[command(about = "Sync changes from .trunk to the main repository")]
@@ -10,54 +11,60 @@ pub struct SyncArgs {
     force: bool,
 }
 
-#[allow(dead_code)]
-pub fn run(args: &SyncArgs) {
+pub fn run(args: &SyncArgs, verbose: bool) {
     // Step 1: Get repository root
-    println!("\u{1F418} Step 1: Getting repository root");
-    let repo_root_output = Command::new("git")
-        .arg("rev-parse")
-        .arg("--show-toplevel")
-        .output();
-    let repo_root_output = repo_root_output.unwrap_or_else(|e| {
-        eprintln!("\u{1F418} Error: Failed to get git repository root: {}", e);
+    info!("Step 1: Getting repository root");
+    let repo_root_output = run_git_command(
+        Command::new("git")
+            .arg("rev-parse")
+            .arg("--show-toplevel"),
+        verbose,
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to get git repository root: {}", e);
         exit(1);
     });
-    let repo_root_temp = String::from_utf8_lossy(&repo_root_output.stdout);
-    let repo_root = repo_root_temp.trim().to_string();
-    println!("\u{1F418} Step 1: Repository root found at {}", repo_root);
-
-    // Step 2: Check if .trunk exists
-    println!("\u{1F418} Step 2: Checking for .trunk directory");
-    let trunk_dir = Path::new(&repo_root).join(".trunk");
-    if !trunk_dir.exists() {
-        eprintln!("\u{1F418} Error: .trunk directory not found. Run `git trunk init` first.");
+    let repo_root = String::from_utf8_lossy(&repo_root_output.stdout).trim().to_string();
+    if repo_root.is_empty() {
+        error!("Git repository root is empty. Ensure you are in a valid Git repository.");
         exit(1);
     }
-    println!("\u{1F418} Step 2: .trunk directory found");
+    info!("Step 1: Repository root found at {}", repo_root);
+
+    // Step 2: Check if .trunk exists
+    info!("Step 2: Checking for .trunk directory");
+    let trunk_dir = Path::new(&repo_root).join(".trunk");
+    if !trunk_dir.exists() {
+        error!(".trunk directory not found. Run `git trunk init` first.");
+        exit(1);
+    }
+    info!("✅ Step 2: .trunk directory found");
 
     // Step 3: Check if .trunk has files to be staged
-    println!("\u{1F418} Step 3: Checking for changes in .trunk");
-    let status_output = Command::new("git")
-        .arg("status")
-        .arg("--porcelain")
-        .current_dir(&trunk_dir)
-        .output();
-    let status_output = status_output.unwrap_or_else(|e| {
-        eprintln!("\u{1F418} Error: Failed to run git status in .trunk: {}", e);
+    info!("Step 3: Checking for changes in .trunk");
+    let status_output = run_git_command(
+        Command::new("git")
+            .arg("status")
+            .arg("--porcelain")
+            .current_dir(&trunk_dir),
+        verbose,
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to run git status in .trunk: {}", e);
         exit(1);
     });
 
     let status = String::from_utf8_lossy(&status_output.stdout);
     if status.is_empty() {
-        println!("\u{1F418} Step 3: No changes to stage in .trunk");
+        info!("Step 3: No changes to stage in .trunk");
     } else {
         // Step 4: Ask user to stage all files (unless --force)
         let should_stage = if args.force {
-            println!("\u{1F418} Step 4: --force specified, staging all changes");
+            info!("Step 4: --force specified, staging all changes");
             true
         } else {
-            println!("\u{1F418} Step 4: Changes detected in .trunk:\n{}", status);
-            print!("\u{1F418} Stage all files? [y/N]: ");
+            info!("Step 4: Changes detected in .trunk:\n{}", status);
+            print!("🐘 Stage all files? [y/N]: ");
             io::stdout().flush().expect("Failed to flush stdout");
 
             let mut input = String::new();
@@ -66,121 +73,179 @@ pub fn run(args: &SyncArgs) {
                 .expect("Failed to read user input");
             let input = input.trim().to_lowercase();
             if input == "y" || input == "yes" {
-                println!("\u{1F418} Step 4: User confirmed staging");
+                info!("Step 4: User confirmed staging");
                 true
             } else {
-                println!("\u{1F418} Step 4: Sync aborted by user");
+                info!("Step 4: Sync aborted by user");
                 exit(0);
             }
         };
 
         if should_stage {
             // Stage all files
-            println!("\u{1F418} Step 4: Staging all files in .trunk");
-            let stage_status = Command::new("git")
-                .arg("add")
-                .arg("-A")
-                .current_dir(&trunk_dir)
-                .status();
-            stage_status.unwrap_or_else(|e| {
-                eprintln!("\u{1F418} Error: Failed to run git add in .trunk: {}", e);
+            info!("Step 4: Staging all files in .trunk");
+            let stage_status = run_git_command(
+                Command::new("git")
+                    .arg("add")
+                    .arg("-A")
+                    .current_dir(&trunk_dir),
+                verbose,
+            )
+            .unwrap_or_else(|e| {
+                error!("Failed to run git add in .trunk: {}", e);
                 exit(1);
-            });
-            println!("\u{1F418} Step 4: Files staged");
+            })
+            .status;
+            if !stage_status.success() {
+                error!("git add failed in .trunk");
+                exit(1);
+            }
+            info!("✅ Step 4: Files staged");
 
             // Step 5: Commit staged files
-            println!("\u{1F418} Step 5: Committing staged changes");
-            let commit_status = Command::new("git")
-                .arg("commit")
-                .arg("-m")
-                .arg("Sync trunk changes")
-                .current_dir(&trunk_dir)
-                .status();
-            let commit_status = commit_status.unwrap_or_else(|e| {
-                eprintln!("\u{1F418} Error: Failed to run git commit in .trunk: {}", e);
+            info!("Step 5: Committing staged changes");
+            let commit_status = run_git_command(
+                Command::new("git")
+                    .arg("commit")
+                    .arg("-m")
+                    .arg("Sync trunk changes")
+                    .current_dir(&trunk_dir),
+                verbose,
+            )
+            .unwrap_or_else(|e| {
+                error!("Failed to run git commit in .trunk: {}", e);
                 exit(1);
-            });
+            })
+            .status;
 
             if !commit_status.success() {
-                println!("\u{1F418} Step 5: No changes to commit in .trunk");
+                info!("Step 5: No changes to commit in .trunk");
             } else {
-                println!("\u{1F418} Step 5: Changes committed");
+                info!("✅ Step 5: Changes committed");
             }
         }
     }
 
     // Step 6: Get the latest commit hash from .trunk
-    println!("\u{1F418} Step 6: Getting latest commit hash from .trunk");
-    let commit_hash_output = Command::new("git")
-        .arg("rev-parse")
-        .arg("main")
-        .current_dir(&trunk_dir)
-        .output();
-    let commit_hash_output = commit_hash_output.unwrap_or_else(|e| {
-        eprintln!("\u{1F418} Error: Failed to get .trunk main commit hash: {}", e);
+    info!("Step 6: Getting latest commit hash from .trunk");
+    let commit_hash_output = run_git_command(
+        Command::new("git")
+            .arg("rev-parse")
+            .arg("main")
+            .current_dir(&trunk_dir),
+        verbose,
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to get .trunk main commit hash: {}", e);
         exit(1);
     });
-    let commit_hash = String::from_utf8_lossy(&commit_hash_output.stdout)
-        .trim()
-        .to_string();
-    println!("\u{1F418} Step 6: Commit hash: {}", commit_hash);
+    let commit_hash = String::from_utf8_lossy(&commit_hash_output.stdout).trim().to_string();
+    info!("Step 6: Commit hash: {}", commit_hash);
 
     // Step 7: Fetch objects from .trunk to main repo
-    println!("\u{1F418} Step 7: Fetching objects from .trunk to main repository");
-    let fetch_status = Command::new("git")
-        .arg("-C")
-        .arg(&repo_root)
-        .arg("fetch")
-        .arg(&trunk_dir)
-        .arg("main:trunk-temp")
-        .status();
-    fetch_status.unwrap_or_else(|e| {
-        eprintln!("\u{1F418} Error: Failed to fetch objects from .trunk: {}", e);
+    info!("Step 7: Fetching objects from .trunk to main repository");
+    let fetch_status = run_git_command(
+        Command::new("git")
+            .arg("-C")
+            .arg(&repo_root)
+            .arg("fetch")
+            .arg(&trunk_dir)
+            .arg("main:trunk-temp"),
+        verbose,
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to fetch objects from .trunk: {}", e);
         exit(1);
-    });
-    println!("\u{1F418} Step 7: Objects fetched");
+    })
+    .status;
+    if !fetch_status.success() {
+        error!("git fetch failed from .trunk");
+        exit(1);
+    }
+    info!("✅ Step 7: Objects fetched");
 
     // Step 8: Update refs/trunk/main
-    println!("\u{1F418} Step 8: Checking if refs/trunk/main exists");
-    let ref_exists = Command::new("git")
-        .arg("rev-parse")
-        .arg("--verify")
-        .arg("refs/trunk/main")
-        .current_dir(&repo_root)
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false);
+    info!("Step 8: Checking if refs/trunk/main exists");
+    let ref_exists = run_git_command(
+        Command::new("git")
+            .arg("rev-parse")
+            .arg("--verify")
+            .arg("refs/trunk/main")
+            .current_dir(&repo_root),
+        verbose,
+    )
+    .map(|output| output.status.success())
+    .unwrap_or(false);
 
-    println!("\u{1F418} Step 8: Updating refs/trunk/main");
-    let update_ref_status = Command::new("git")
-        .arg("update-ref")
-        .arg("refs/trunk/main")
-        .arg(&commit_hash)
-        .current_dir(&repo_root)
-        .status();
-    update_ref_status.unwrap_or_else(|e| {
-        eprintln!("\u{1F418} Error: Failed to update refs/trunk/main: {}", e);
+    info!("Step 8: Updating refs/trunk/main");
+    let update_ref_status = run_git_command(
+        Command::new("git")
+            .arg("update-ref")
+            .arg("refs/trunk/main")
+            .arg(&commit_hash)
+            .current_dir(&repo_root),
+        verbose,
+    )
+    .unwrap_or_else(|e| {
+        error!("Failed to update refs/trunk/main: {}", e);
         exit(1);
-    });
-
-    // Step 9: Clean up temporary branch
-    println!("\u{1F418} Step 9: Cleaning up temporary branch trunk-temp");
-    Command::new("git")
-        .arg("branch")
-        .arg("-D")
-        .arg("trunk-temp")
-        .current_dir(&repo_root)
-        .status()
-        .unwrap_or_else(|e| {
-            eprintln!("\u{1F418} Warning: Failed to delete temporary branch trunk-temp: {}", e);
-            exit(1);
-        });
-
-    if ref_exists {
-        println!("\u{1F418} Step 8: Updated refs/trunk/main to commit {}", commit_hash);
-    } else {
-        println!("\u{1F418} Step 8: Created refs/trunk/main at commit {}", commit_hash);
+    })
+    .status;
+    if !update_ref_status.success() {
+        error!("git update-ref failed for refs/trunk/main");
+        exit(1);
     }
 
-    println!("\u{1F418} Trunk synced successfully");
+    // Step 9: Clean up temporary branch
+    info!("Step 9: Cleaning up temporary branch trunk-temp");
+    let cleanup_status = run_git_command(
+        Command::new("git")
+            .arg("branch")
+            .arg("-D")
+            .arg("trunk-temp")
+            .current_dir(&repo_root),
+        verbose,
+    );
+    if let Err(e) = cleanup_status {
+        error!("Warning: Failed to delete temporary branch trunk-temp: {}", e);
+        // Non-critical, continue
+    }
+
+    if ref_exists {
+        info!("✅ Step 8: Updated refs/trunk/main to commit {}", commit_hash);
+    } else {
+        info!("✅ Step 8: Created refs/trunk/main at commit {}", commit_hash);
+    }
+
+    info!("✅ Trunk synced successfully");
+}
+
+fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {
+    // Check if git is available
+    let git_check = Command::new("git")
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    if git_check.is_err() || !git_check.unwrap().success() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Git executable not found or failed to execute",
+        ));
+    }
+
+    // Always capture stdout, suppress stderr in non-verbose mode
+    if !verbose {
+        command.stderr(Stdio::null());
+    }
+    let output = command.output()?;
+    if verbose {
+        if !output.stdout.is_empty() {
+            debug!("Git stdout: {}", String::from_utf8_lossy(&output.stdout));
+        }
+        if !output.stderr.is_empty() {
+            debug!("Git stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+    }
+    Ok(output)
 }

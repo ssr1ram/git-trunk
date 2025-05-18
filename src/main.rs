@@ -1,4 +1,7 @@
 use clap::{Parser, Subcommand};
+use log::LevelFilter;
+use env_logger::{Builder, Env};
+use std::io::Write;
 
 mod commands;
 
@@ -8,6 +11,8 @@ mod commands;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+    #[arg(long, short = 'v', help = "Enable verbose output")]
+    verbose: bool,
 }
 
 #[derive(Subcommand)]
@@ -24,14 +29,31 @@ enum Commands {
     Hooks(commands::hooks::HooksArgs),
 }
 
+fn init_logger(verbose: bool) {
+    let env = Env::default().filter_or("RUST_LOG", if verbose { "debug" } else { "info" });
+    Builder::from_env(env)
+        .format(|buf, record| {
+            let level_style = match record.level() {
+                log::Level::Error => "\x1B[31m❌\x1B[0m", // Red ❌ for errors
+                log::Level::Info => "🐘",                // 🐘 for info
+                log::Level::Debug => "🐘",               // 🐘 for debug
+                _ => "",                                  // Others (not used)
+            };
+            writeln!(buf, "{} {}", level_style, record.args())
+        })
+        .filter(None, if verbose { LevelFilter::Debug } else { LevelFilter::Info })
+        .init();
+}
+
 fn main() {
     let cli = Cli::parse();
+    init_logger(cli.verbose);
 
     match cli.command {
-        Commands::Init(args) => commands::init::run(&args),
-        Commands::Sync(args) => commands::sync::run(&args),
-        Commands::Clone(args) => commands::clone::run(&args),
-        Commands::Push(args) => commands::push::run(&args),
-        Commands::Hooks(args) => commands::hooks::run(&args),
+        Commands::Init(args) => commands::init::run(&args, cli.verbose),
+        Commands::Sync(args) => commands::sync::run(&args, cli.verbose),
+        Commands::Clone(args) => commands::clone::run(&args, cli.verbose),
+        Commands::Push(args) => commands::push::run(&args, cli.verbose),
+        Commands::Hooks(args) => commands::hooks::run(&args, cli.verbose),
     }
 }
