@@ -6,13 +6,13 @@ use clap::Parser;
 use log::{debug, error, info};
 
 #[derive(Parser, Debug)]
-#[command(about = "Clone the trunk from refs/trunk/main into .trunk")]
-pub struct CloneArgs {
+#[command(about = "Checkout the trunk from refs/trunk/main into .trunk")]
+pub struct CheckoutArgs {
     #[arg(long, help = "Force cloning, overwriting existing .trunk directory")]
     force: bool,
 }
 
-pub fn run(args: &CloneArgs, verbose: bool) {
+pub fn run(args: &CheckoutArgs, verbose: bool) {
     // Step 1: Get repository root
     debug!("Step 1: Getting repository root");
     let repo_root_output = run_git_command(
@@ -131,7 +131,7 @@ pub fn run(args: &CloneArgs, verbose: bool) {
                 debug!("Step 6: User confirmed overwrite");
                 true
             } else {
-                info!("Step 6: Clone aborted by user");
+                info!("Step 6: Checkout aborted by user");
                 exit(0);
             }
         };
@@ -273,7 +273,7 @@ pub fn run(args: &CloneArgs, verbose: bool) {
     }
     info!("✓ Step 13: Temporary ref cleaned up");
 
-    info!("✅ Trunk cloned successfully");
+    info!("✅ Trunk checkout successfully");
 }
 
 // Helper function to run Git commands and handle output

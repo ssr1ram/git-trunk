@@ -72,7 +72,7 @@ pub fn run(args: &HooksArgs, verbose: bool) {
         input == "y" || input == "yes"
     } else {
         debug!("Step 4: No post-commit hook found or --force specified");
-        print!("🐘 Install post-commit hook to auto-sync .trunk after commits? [y/N]: ");
+        print!("🐘 Install post-commit hook to auto-commit .trunk after commits? [y/N]: ");
         io::stdout().flush().expect("Failed to flush stdout");
         let mut input = String::new();
         io::stdin()
@@ -85,8 +85,8 @@ pub fn run(args: &HooksArgs, verbose: bool) {
     if install_post_commit {
         debug!("Step 4: Creating post-commit hook");
         let post_commit_content = r#"#!/bin/sh
-# Post-commit hook to auto-sync .trunk changes
-git trunk sync --force
+# Post-commit hook to auto-commit .trunk changes
+git trunk commit --force
 "#;
         let mut post_commit_file = File::create(&post_commit_path).unwrap_or_else(|e| {
             error!("Failed to create post-commit hook: {}", e);

@@ -5,13 +5,13 @@ use clap::Parser;
 use log::{debug, error, info};
 
 #[derive(Parser, Debug)]
-#[command(about = "Sync changes from .trunk to the main repository")]
-pub struct SyncArgs {
+#[command(about = "Commit changes from .trunk to the main repository")]
+pub struct CommitArgs {
     #[arg(long, help = "Skip interactive prompts and stage all changes")]
     force: bool,
 }
 
-pub fn run(args: &SyncArgs, verbose: bool) {
+pub fn run(args: &CommitArgs, verbose: bool) {
     // Step 1: Get repository root
     debug!("Step 1: Getting repository root");
     let repo_root_output = run_git_command(
@@ -76,7 +76,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
                 debug!("Step 4: User confirmed staging");
                 true
             } else {
-                info!("Step 4: Sync aborted by user");
+                info!("Step 4: Commit aborted by user");
                 exit(0);
             }
         };
@@ -108,7 +108,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
                 Command::new("git")
                     .arg("commit")
                     .arg("-m")
-                    .arg("Sync trunk changes")
+                    .arg("Commit trunk changes")
                     .current_dir(&trunk_dir),
                 verbose,
             )
@@ -217,7 +217,7 @@ pub fn run(args: &SyncArgs, verbose: bool) {
         info!("✓ Step 8: Created refs/trunk/main at commit {}", commit_hash);
     }
 
-    info!("✅ Trunk synced successfully");
+    info!("✅ Trunk commited successfully");
 }
 
 fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {

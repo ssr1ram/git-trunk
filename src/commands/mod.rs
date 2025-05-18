@@ -1,5 +1,5 @@
 pub mod init;
-pub mod sync;
-pub mod clone;
+pub mod commit;
+pub mod checkout;
 pub mod push;
 pub mod hooks;

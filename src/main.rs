@@ -19,10 +19,10 @@ struct Cli {
 enum Commands {
     /// Initializes the git-trunk in the current repository
     Init(commands::init::InitArgs),
-    /// Syncs changes from .trunk to the main repository
-    Sync(commands::sync::SyncArgs),
-    /// Clones the trunk from refs/trunk/main into .trunk
-    Clone(commands::clone::CloneArgs),
+    /// Commits changes from .trunk to the main repository
+    Commit(commands::commit::CommitArgs),
+    /// Checkouts the trunk from refs/trunk/main into .trunk
+    Checkout(commands::checkout::CheckoutArgs),
     /// Pushes the objects from refs/trunk/main to remote (default origin)
     Push(commands::push::PushArgs),
     /// Manages Git hooks for git-trunk
@@ -51,8 +51,8 @@ fn main() {
 
     match cli.command {
         Commands::Init(args) => commands::init::run(&args, cli.verbose),
-        Commands::Sync(args) => commands::sync::run(&args, cli.verbose),
-        Commands::Clone(args) => commands::clone::run(&args, cli.verbose),
+        Commands::Commit(args) => commands::commit::run(&args, cli.verbose),
+        Commands::Checkout(args) => commands::checkout::run(&args, cli.verbose),
         Commands::Push(args) => commands::push::run(&args, cli.verbose),
         Commands::Hooks(args) => commands::hooks::run(&args, cli.verbose),
     }
