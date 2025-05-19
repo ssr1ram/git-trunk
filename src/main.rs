@@ -11,7 +11,12 @@ mod commands;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-    #[arg(long, short = 'v', help = "Enable verbose output")]
+    #[arg(
+        long, 
+        short = 'v', 
+        help = "Enable verbose output",
+        global = true
+    )]
     verbose: bool,
 }
 
