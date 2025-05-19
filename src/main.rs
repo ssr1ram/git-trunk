@@ -32,6 +32,10 @@ enum Commands {
     Push(commands::push::PushArgs),
     /// Manages Git hooks for git-trunk
     Hooks(commands::hooks::HooksArgs),
+    /// Removes all traces of .trunk from the main repository
+    Stegano(commands::stegano::SteganoArgs),
+    /// Removes all traces of git-trunk, including .trunk and refs/trunk/main locally and remotely
+    Delete(commands::delete::DeleteArgs),
 }
 
 fn init_logger(verbose: bool) {
@@ -60,5 +64,7 @@ fn main() {
         Commands::Checkout(args) => commands::checkout::run(&args, cli.verbose),
         Commands::Push(args) => commands::push::run(&args, cli.verbose),
         Commands::Hooks(args) => commands::hooks::run(&args, cli.verbose),
+        Commands::Stegano(args) => commands::stegano::run(&args, cli.verbose),
+        Commands::Delete(args) => commands::delete::run(&args, cli.verbose),
     }
 }
