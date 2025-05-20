@@ -18,6 +18,60 @@ It helps you
 *   `-r, --remote <REMOTE>`: Specifies the Git remote to interact with (default: `origin`).
 *   `-s, --store <STORE>`: Specifies the name of the "trunk store" to operate on (default: `main`). Most commands target a specific store.
 
+## installation
+
+**From Source**
+
+1.  Ensure you have Rust and Cargo installed. See [rustup.rs](https://rustup.rs/).
+2.  Clone the repository:
+    ```bash
+    git clone https://github.com/ssr1ram/git-trunk.git
+    cd git-trunk
+    ```
+3.  Install the binary:
+    ```bash
+    cargo install --path .
+    ```
+    This will make `your-binary-name` available in your shell.
+
+**Directly from GitHub**
+
+1.  Ensure you have Rust and Cargo installed. See [rustup.rs](https://rustup.rs/).
+2.  Install directly using Cargo:
+    ```bash
+    cargo install --git https://github.com/ssr1ram/git-trunk.git
+    ```
+    This will download the source, compile, and install `git-trunk` to `~/.cargo/bin/`.
+
+## quick start
+
+1. Create a store (This will create a .trunk/main directory)
+    ```sh
+    git trunk int
+    ```
+
+
+2. Edit files in the store
+    ```txt
+    Use your favourite editor to edit files in .trunk/main
+    ```
+
+3. Commit you changes
+    ```sh
+    git trunk commit
+    ```
+
+4. Push them to your remote `origin`
+    ```sh
+    git trunk push
+    ```
+
+5. When you next clone the repo (This will re-populate `.trunk/main` with the files)
+    ```
+    git trunk checkout
+    ```
+
+
 ## flow
 
 ```mermaid
@@ -55,6 +109,9 @@ graph TD
     classDef state fill:#e0f0ff,stroke:#333,stroke-width:1px,color:#000;
     class A,C,F,G,J,K,M state;
 ```
+
+
+
 
 ## commands
 
@@ -136,5 +193,11 @@ graph TD
 
 *   `utils.rs`: Contains a `run_git_command` helper function used by all commands to execute Git commands, manage verbose output, and perform a basic check for Git availability.
 
+## under the hood
+
+- Custom git refs are created under the trunk namespace i.e. `refs/trunk/<store name>`
+- Each store is a separate git repo
+- The git objects of each store are copied over from .trunk/<store> in commit and brought back to .trunk/<store> on checkout
+- github and other git servers typically only bring in `refs/heads`, `refs/remotes` and `refs/tags` when you clone a repo
 
 
