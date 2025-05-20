@@ -100,49 +100,61 @@ pub fn run(_args: &SteganoArgs, _remote_name: &str, store_name: &str, verbose: b
         }
 
         if cleanup_gitignore_entry {
-            debug!("🧹 Step 4b: Attempting to remove '.trunk' from .gitignore");
-            let gitignore_path = repo_root.join(".gitignore");
-            if gitignore_path.exists() {
-                let mut gitignore_content = String::new();
-                match File::open(&gitignore_path) {
-                    Ok(mut file) => {
-                        if let Err(e) = file.read_to_string(&mut gitignore_content) {
-                            error!("❌ Failed to read .gitignore content: {}. Skipping .gitignore cleanup.", e);
-                        } else {
-                            let updated_content: String = gitignore_content
-                                .lines()
-                                .filter(|line| line.trim() != ".trunk")
-                                .collect::<Vec<&str>>()
-                                .join("\n");
+    debug!("🧹 Step 4b: Attempting to remove '.trunk' from .gitignore");
+    let gitignore_path = repo_root.join(".gitignore");
 
-                            if updated_content != gitignore_content {
-                                match OpenOptions::new().write(true).truncate(true).open(&gitignore_path) {
-                                    Ok(mut file) => {
-                                        if let Err(e) = writeln!(file, "{}", updated_content) {
-                                            error!("❌ Failed to write updated .gitignore content: {}. Manual cleanup of .gitignore may be needed.",e);
-                                        } else {
-                                            info!("✓ Step 4b: Removed '.trunk' entry from .gitignore.");
-                                        }
-                                    }
-                                    Err(e) => {
-                                        error!("❌ Failed to open .gitignore for writing: {}. Manual cleanup of .gitignore may be needed.", e);
-                                    }
-                                }
-                            } else {
-                                debug!("= Step 4b: No '.trunk' entry found in .gitignore, or file was already clean.");
-                                info!("= Step 4b: No '.trunk' entry to remove from .gitignore.");
-                            }
+    if gitignore_path.exists() {
+        let mut gitignore_content = String::new();
+        match File::open(&gitignore_path) {
+            Ok(mut file) => {
+                if let Err(e) = file.read_to_string(&mut gitignore_content) {
+                    error!("❌ Failed to read .gitignore content: {}. Skipping .gitignore cleanup.", e);
+                } else {
+                    // Check for the exact patterns added: "\n.trunk\n" or ".trunk\n"
+                    let possible_suffixes = ["\n.trunk\n", ".trunk\n"];
+                    let mut updated_content = gitignore_content.clone();
+                    let mut modified = false;
+
+                    for suffix in possible_suffixes.iter() {
+                        if updated_content.ends_with(suffix) {
+                            updated_content = updated_content.strip_suffix(suffix).unwrap().to_string();
+                            modified = true;
+                            break;
                         }
                     }
-                    Err(e) => {
-                         error!("❌ Failed to open .gitignore for reading: {}. Skipping .gitignore cleanup.", e);
+
+                    if modified {
+                        match OpenOptions::new()
+                            .write(true)
+                            .truncate(true)
+                            .open(&gitignore_path)
+                        {
+                            Ok(mut file) => {
+                                if let Err(e) = write!(file, "{}", updated_content) {
+                                    error!("❌ Failed to write updated .gitignore content: {}. Manual cleanup of .gitignore may be needed.", e);
+                                } else {
+                                    info!("✓ Step 4b: Removed '.trunk' entry from .gitignore.");
+                                }
+                            }
+                            Err(e) => {
+                                error!("❌ Failed to open .gitignore for writing: {}. Manual cleanup of .gitignore may be needed.", e);
+                            }
+                        }
+                    } else {
+                        debug!("= Step 4b: No matching '.trunk' entry found in .gitignore.");
+                        info!("= Step 4b: No '.trunk' entry to remove from .gitignore.");
                     }
                 }
-            } else {
-                debug!("🚫 Step 4b: No .gitignore file found.");
-                info!("= Step 4b: No .gitignore file to modify.");
+            }
+            Err(e) => {
+                error!("❌ Failed to open .gitignore for reading: {}. Skipping .gitignore cleanup.", e);
             }
         }
+    } else {
+        debug!("🚫 Step 4b: No .gitignore file found.");
+        info!("= Step 4b: No .gitignore file to modify.");
+    }
+}
     } else {
         info!("⚠️ Skipping .trunk parent directory and .gitignore cleanup due to issues removing the store directory {}.", store_dir_relative_path);
     }
