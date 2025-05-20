@@ -1,10 +1,9 @@
-use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs;
 use std::path::Path;
 use std::process::{Command, exit};
 use clap::Parser;
 use log::{debug, error, info};
-use crate::utils::run_git_command;
+use crate::utils::{run_git_command, remove_trunk_from_gitignore};
 
 #[derive(Parser, Debug)]
 #[command(about = "Remove all traces of .trunk/<store> from the main repository's working directory. If .trunk becomes empty, it and its .gitignore entry are also removed.")]
@@ -100,61 +99,12 @@ pub fn run(_args: &SteganoArgs, _remote_name: &str, store_name: &str, verbose: b
         }
 
         if cleanup_gitignore_entry {
-    debug!("🧹 Step 4b: Attempting to remove '.trunk' from .gitignore");
-    let gitignore_path = repo_root.join(".gitignore");
-
-    if gitignore_path.exists() {
-        let mut gitignore_content = String::new();
-        match File::open(&gitignore_path) {
-            Ok(mut file) => {
-                if let Err(e) = file.read_to_string(&mut gitignore_content) {
-                    error!("❌ Failed to read .gitignore content: {}. Skipping .gitignore cleanup.", e);
-                } else {
-                    // Check for the exact patterns added: "\n.trunk\n" or ".trunk\n"
-                    let possible_suffixes = ["\n.trunk\n", ".trunk\n"];
-                    let mut updated_content = gitignore_content.clone();
-                    let mut modified = false;
-
-                    for suffix in possible_suffixes.iter() {
-                        if updated_content.ends_with(suffix) {
-                            updated_content = updated_content.strip_suffix(suffix).unwrap().to_string();
-                            modified = true;
-                            break;
-                        }
-                    }
-
-                    if modified {
-                        match OpenOptions::new()
-                            .write(true)
-                            .truncate(true)
-                            .open(&gitignore_path)
-                        {
-                            Ok(mut file) => {
-                                if let Err(e) = write!(file, "{}", updated_content) {
-                                    error!("❌ Failed to write updated .gitignore content: {}. Manual cleanup of .gitignore may be needed.", e);
-                                } else {
-                                    info!("✓ Step 4b: Removed '.trunk' entry from .gitignore.");
-                                }
-                            }
-                            Err(e) => {
-                                error!("❌ Failed to open .gitignore for writing: {}. Manual cleanup of .gitignore may be needed.", e);
-                            }
-                        }
-                    } else {
-                        debug!("= Step 4b: No matching '.trunk' entry found in .gitignore.");
-                        info!("= Step 4b: No '.trunk' entry to remove from .gitignore.");
-                    }
-                }
+            debug!("🧹 Step 4b: Attempting to remove '.trunk' from .gitignore");
+            if let Err(e) = remove_trunk_from_gitignore(repo_root, "Step 4b") {
+                 error!("❌ Failed during .gitignore cleanup for 'Step 4b': {}. Manual cleanup may be needed.", e);
             }
-            Err(e) => {
-                error!("❌ Failed to open .gitignore for reading: {}. Skipping .gitignore cleanup.", e);
-            }
+            // Detailed info/debug for Step 4b (removed/not found) is handled by remove_trunk_from_gitignore
         }
-    } else {
-        debug!("🚫 Step 4b: No .gitignore file found.");
-        info!("= Step 4b: No .gitignore file to modify.");
-    }
-}
     } else {
         info!("⚠️ Skipping .trunk parent directory and .gitignore cleanup due to issues removing the store directory {}.", store_dir_relative_path);
     }

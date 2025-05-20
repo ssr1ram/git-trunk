@@ -1,10 +1,10 @@
-use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::Path;
 use std::process::{Command, exit};
 use clap::Parser;
 use log::{debug, error, info};
-use crate::utils::run_git_command;
+use crate::utils::{run_git_command, ensure_trunk_in_gitignore};
 
 #[derive(Parser, Debug)]
 #[command(about = "Initialize a .trunk/<store> directory")]
@@ -43,53 +43,24 @@ pub fn run(args: &InitArgs, _remote_name: &str, store_name: &str, verbose: bool)
         error!("❌ Failed to get git repository root: {}", e);
         exit(1);
     });
-    let repo_root = String::from_utf8_lossy(&repo_root_output.stdout).trim().to_string();
-    if repo_root.is_empty() {
+    let repo_root_str = String::from_utf8_lossy(&repo_root_output.stdout).trim().to_string();
+    if repo_root_str.is_empty() {
         error!("❌ Git repository root is empty. Ensure you are in a valid Git repository.");
         exit(1);
     }
-    info!("✓ Step 2: Repository root found at {}", repo_root);
+    let repo_root = Path::new(&repo_root_str);
+    info!("✓ Step 2: Repository root found at {}", repo_root.display());
 
     // Step 3: Ensure .trunk is in .gitignore (parent directory)
-    debug!("➡️ Step 3: Checking .gitignore for .trunk entry");
-    let gitignore_path = Path::new(&repo_root).join(".gitignore");
-    let mut gitignore_content = String::new();
-    let mut gitignore_needs_update = false;
-
-    if gitignore_path.exists() {
-        let mut gitignore_file = File::open(&gitignore_path).unwrap_or_else(|e| {
-            error!("Failed to read .gitignore: {}", e);
-            exit(1);
-        });
-        gitignore_file
-            .read_to_string(&mut gitignore_content)
-            .expect("Failed to read .gitignore content");
-        if !gitignore_content.lines().any(|line| line.trim() == ".trunk") {
-            gitignore_needs_update = true;
-        }
-    } else {
-        gitignore_needs_update = true;
+    debug!("➡️ Step 3: Ensuring .trunk is in .gitignore");
+    if let Err(e) = ensure_trunk_in_gitignore(repo_root, "Step 3") {
+        error!("❌ Failed to update .gitignore for Step 3: {}", e);
+        exit(1);
     }
-
-    if gitignore_needs_update {
-        debug!("✨ Step 3: Adding .trunk to .gitignore");
-        let mut gitignore_file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&gitignore_path)
-            .unwrap_or_else(|e| {
-                error!("❌ Failed to open .gitignore: {}", e);
-                exit(1);
-            });
-        writeln!(gitignore_file, ".trunk").expect("Failed to write .trunk to .gitignore");
-        info!("✓ Step 3: Added .trunk to .gitignore");
-    } else {
-        debug!("= Step 3: .trunk already in .gitignore");
-        info!("= Step 3: .trunk already in .gitignore");
-    }
+    // Detailed info/debug for Step 3 (added/already exists) is handled by ensure_trunk_in_gitignore
     
     // Step 4: Create .trunk parent directory if it doesn't exist
-    let parent_trunk_dir = Path::new(&repo_root).join(".trunk");
+    let parent_trunk_dir = repo_root.join(".trunk");
     if !parent_trunk_dir.exists() {
         debug!("✨ Step 4a: Creating parent .trunk directory");
         fs::create_dir(&parent_trunk_dir).unwrap_or_else(|e| {
