@@ -1,13 +1,13 @@
 # git trunk
 
-git trunk is a CLI tool for managing repository-wide documentation in a .trunk directory within a Git repository, stored under refs/trunk/main in the main repository.
+git trunk is a CLI tool for managing repository-wide files that are common across all branches. 
 
 It helps you 
-- Hold information that is common across all branches such as issues, bugs, changelog, history etc. These files can be maintained repowide and not be branch specific.
+- Hold a single version of information that is common across all branches such as issues, bugs, changelog, history etc.
 - Get steganographic i.e. conceal information in a public git repo that is non-evident.
 
 
-## About git-trunk
+## about 
 **`git-trunk` CLI: Core Functionality**
 
 `git-trunk` is a command-line interface tool designed to manage repository-wide documents and metadata, which are stored within a dedicated `.trunk/<store_name>` directory inside a Git repository. These "stores" are then tracked in the main repository using a special Git reference, typically `refs/trunk/<store_name>`. The primary aim is to keep certain information (like issues, changelogs, design documents) separate from the main project's branching history but still versioned and shareable within the same repository. It also offers a way to "hide" these files from the working directory on demand (steganography).
@@ -17,6 +17,47 @@ It helps you
 *   `-v, --verbose`: Enables detailed debug logging.
 *   `-r, --remote <REMOTE>`: Specifies the Git remote to interact with (default: `origin`).
 *   `-s, --store <STORE>`: Specifies the name of the "trunk store" to operate on (default: `main`). Most commands target a specific store.
+
+## flow
+
+```mermaid
+graph TD
+    A[Start: Git Repository] --> B(<code>git trunk init --store <name></code>);
+    B -- Creates .trunk/<name> & local ref after first inner commit --> C{Work/Edit files in .trunk/<name>};
+    C --> D(<code>git trunk commit --store <name></code>);
+    D -- Updates local refs/trunk/<name> --> C;
+    D --> E(<code>git trunk push --store <name></code>);
+    E -- Pushes refs/trunk/<name> to remote --> F{Remote refs/trunk/<name> exists};
+
+    F --> G[New Clone / Collaborator Setup];
+    G --> H(<code>git trunk checkout --store <name></code>);
+    H -- Creates .trunk/<name> from ref --> C;
+
+    C --> I(<code>git trunk stegano --store <name></code>);
+    I -- Removes .trunk/<name> directory --> J{Trunk files hidden from working directory<br/>refs/trunk/<name> persists};
+    J --> H
+
+    subgraph "Definitive Removal of Store"
+        style DeletionPath fill:#ffe0e0,stroke:#c00
+        K((Store <name> Exists<br/>via init, commit, checkout, or even just ref from stegano)) --> L(<code>git trunk delete --store <name></code>);
+        L -- Removes .trunk/<name> (if present),<br/>local refs/trunk/<name>,<br/>and remote refs/trunk/<name> --> M[Store <name> Completely Removed];
+    end
+    
+    %% Connections to Deletion Trigger State
+    B --> K_from_B( ); K_from_B -.-> K;
+    D --> K_from_D( ); K_from_D -.-> K; 
+    E --> K_from_E( ); K_from_E -.-> K; 
+    H --> K_from_H( ); K_from_H -.-> K; 
+    J --> K_from_J( ); K_from_J -.-> K; 
+
+    %% Styling
+    classDef command fill:#ffffe0,stroke:#333,stroke-width:2px,color:#000,font-family:monospace;
+    class B,D,E,H,I,L command;
+    classDef state fill:#e0f0ff,stroke:#333,stroke-width:1px,color:#000;
+    class A,C,F,G,J,K,M state;
+```
+
+## commands
 
 **Key Commands and Their Actions (Per Store):**
 
@@ -98,120 +139,3 @@ It helps you
 
 
 
-## Typical flow
-
-### Using it in a repo for the first time
-```sh
-❯ git trunk init          
-🐘 ✓ Step 1: Confirmed inside a Git repository
-🐘 ✓ Step 2: Repository root found at <dirpath>>
-🐘 ✓ Step 3: Added .trunk to .gitignore
-🐘 ✓ Step 4: .trunk directory created
-🐘 ✓ Step 5: Created .trunk/readme.md
-🐘 ✓ Step 6: Git repository initialized
-🐘 ✓ Step 7: Files staged
-🐘 ✓ Step 8: Initial commit created
-🐘 ✅ Trunk initialized successfully
-```
-This 
-- creates a new .trunk directiry that is .gitignore'd.
-- allows you toadd any files you choose in .trunk which are later added to the .git database
-- A new refs/trunk/main is created in the .git db
-
-### Using it in a newly cloned repo that has a trunk (refs/trunk/main)
-```sh
-❯ git trunk checkout
-🐘 ✓ Step 1: Repository root found at <dirpath>
-🐘 ✓ Step 2: refs/trunk/main not found locally
-🐘 ✓ Step 3: refs/trunk/main found on remote (origin)
-🐘 ✓ Step 4: Successfully fetched refs/trunk/main
-🐘 ✓ Step 5: refs/trunk/main verified locally
-🐘 Step 6: .trunk directory does not exist
-🐘 ✓ Step 7: .trunk directory created
-🐘 ✓ Step 8: Git repository initialized in .trunk
-🐘 ✓ Step 9: Successfully fetched refs/trunk/main into temporary ref
-🐘 ✓ Step 10: Fetched commit hash: 9d9d7fc92c440553709a9e763a43d59ad4e2ee47
-🐘 ✓ Step 11: Main branch reset to commit 9d9d7fc92c440553709a9e763a43d59ad4e2ee47
-🐘 ✓ Step 12: refs/heads/main updated
-🐘 ✓ Step 13: Temporary ref cleaned up
-🐘 ✅ Trunk checkout successfully
-```
-
-This
-- fetches refs/trunk/main from origin 
-- initialize the .trunk directory and repopulates it with the files
-
-### Everyday usage
-- Make changes to .trunk files and then run `git trunk commit` and `git trunk push`
-- You can use `git trunk hooks` to setup 
-  - a post-commit hook that does the `git trunk commit` on every regular commit
-  - a pre-push hook that does the `git trunk push` on every git push 
-
-```sh
-❯ git trunk commit
-🐘 ✓ Step 1: Repository root found at <dirpath>
-🐘 ✓ Step 2: .trunk directory found
-🐘 ≠ Step 4: Changes detected in .trunk:
- M readme.md
-
-🐘︖ Stage all files? [y/N]: y
-🐘 ✓ Step 4: Files staged
-🐘 ✓ Step 5: Changes committed
-🐘 ✓ Step 7: Objects fetched
-🐘 ✓ Step 8: Updated refs/trunk/main to commit e9278...
-🐘 ✅ Trunk commited successfully
-```
-
-```sh
-❯ git trunk push
-🐘 ✓ Step 1: refs/trunk/main found locally
-🐘 ✓ Step 2: Successfully pushed refs/trunk/main to origin
-🐘 ✅ Trunk pushed successfully
-```
-
-### make it steganographic
-```sh
-❯ git trunk stegano
-🐘 ✓ Step 1: Confirmed inside a Git repository
-🐘 ✓ Step 2: Repository root found at <dirpath>
-🐘 ✓ Step 3: Removed .trunk from .gitignore
-🐘 ✓ Step 4: .trunk directory removed
-🐘 ✅ Stegano completed successfully: All traces of .trunk removed
-```
-
-## delete refs/trunk/main 
-```sh
-❯ git trunk delete  
-🐘︖ This will delete .trunk, its .gitignore entry, and refs/trunk/main locally and on the remote (origin). Continue? [y/N]: y
-🐘 ✓ Step 1: User confirmed deletion
-🐘 ✓ Step 2: Confirmed inside a Git repository
-🐘 ✓ Step 3: Repository root found at <dirpath>
-🐘 ✓ Step 4: Removed .trunk from .gitignore
-🐘 ✓ Step 5: .trunk directory removed
-🐘 ✓ Step 6: Local refs/trunk/main deleted
-🐘 ✓ Step 7: Remote refs/trunk/main deleted on origin
-🐘 ✅ Delete completed successfully: All traces of git-trunk removed
-```
-
-## git-trunk help
-```
-❯ git trunk
-Git Trunk CLI for managing repository-wide documents
-
-Usage: git-trunk [OPTIONS] <COMMAND>
-
-Commands:
-  init      Initializes the git-trunk in the current repository
-  commit    Commits changes from .trunk to the main repository
-  checkout  Checkouts the trunk from refs/trunk/main into .trunk
-  push      Pushes the objects from refs/trunk/main to remote (default origin)
-  hooks     Manages Git hooks for git-trunk
-  stegano   Removes all traces of .trunk from the main repository
-  delete    Removes all traces of git-trunk, including .trunk and refs/trunk/main locally and remotely
-  help      Print this message or the help of the given subcommand(s)
-
-Options:
-  -v, --verbose  Enable verbose output
-  -h, --help     Print help
-  -V, --version  Print version
-```
