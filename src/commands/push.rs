@@ -1,90 +1,59 @@
 use clap::Parser;
-use std::io;
-use std::process::{Command, exit, Stdio};
+use std::process::{Command, exit};
 use log::{debug, error, info};
+use crate::utils::run_git_command; // Ensure this line is present
 
 #[derive(Parser, Debug)]
-#[command(about = "Push refs/trunk/main to the specified remote")]
+#[command(about = "Push refs/trunk/<store> to the specified remote")]
 pub struct PushArgs {
-    #[arg(
-        long,
-        default_value = "origin",
-        help = "Remote to push refs/trunk/main to"
-    )]
-    remote: String,
+    // Remote is now a global option, remove from here
+    // store is now a global option, remove from here if it was ever considered locally
 }
 
-pub fn run(args: &PushArgs, verbose: bool) {
-    // Step 1: Verify that refs/trunk/main exists
-    debug!("Step 1: Checking if refs/trunk/main exists locally");
+pub fn run(_args: &PushArgs, remote_name: &str, store_name: &str, verbose: bool) {
+    let trunk_ref_name = format!("refs/trunk/{}", store_name);
+
+    // Step 1: Verify that refs/trunk/<store_name> exists locally
+    debug!("Step 1: Checking if {} exists locally for store '{}'", trunk_ref_name, store_name);
     let show_ref = run_git_command(
         Command::new("git")
-            .args(["show-ref", "--quiet", "refs/trunk/main"]),
+            .args(["show-ref", "--quiet", &trunk_ref_name]),
         verbose,
     )
     .unwrap_or_else(|e| {
-        error!("Failed to check refs/trunk/main: {}", e);
+        error!("Failed to check {}: {}", trunk_ref_name, e);
         exit(1);
     });
 
     if !show_ref.status.success() {
-        error!("refs/trunk/main does not exist in the repository");
+        error!("{} for store '{}' does not exist in the local repository. Commit changes first using `git trunk commit --store {}`.", trunk_ref_name, store_name, store_name);
         exit(1);
     }
-    info!("✓ Step 1: refs/trunk/main found locally");
+    info!("✓ Step 1: {} found locally for store '{}'", trunk_ref_name, store_name);
 
-    // Step 2: Push refs/trunk/main to the remote
-    debug!("Step 2: Pushing refs/trunk/main to remote '{}'", args.remote);
-    let push = run_git_command(
+    // Step 2: Push refs/trunk/<store_name> to the remote
+    debug!("Step 2: Pushing {} for store '{}' to remote '{}'", trunk_ref_name, store_name, remote_name);
+    let refspec = format!("{}:{}", trunk_ref_name, trunk_ref_name);
+    let push_status = run_git_command(
         Command::new("git")
             .args([
                 "push",
-                &args.remote,
-                "refs/trunk/main:refs/trunk/main",
+                remote_name,
+                &refspec,
             ]),
         verbose,
     )
     .unwrap_or_else(|e| {
-        error!("Failed to execute git push: {}", e);
+        error!("Failed to execute git push for store '{}' to remote '{}': {}", store_name, remote_name, e);
         exit(1);
     })
     .status;
 
-    if !push.success() {
-        error!("Failed to push refs/trunk/main to remote '{}'", args.remote);
+    if !push_status.success() {
+        error!("Failed to push {} for store '{}' to remote '{}'", trunk_ref_name, store_name, remote_name);
         exit(1);
     }
 
-    info!("✓ Step 2: Successfully pushed refs/trunk/main to {}", args.remote);
-    info!("✅ Trunk pushed successfully")
-}
-
-fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {
-    // Check if git is available
-    let git_check = Command::new("git")
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
-    if git_check.is_err() || !git_check.unwrap().success() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "Git executable not found or failed to execute",
-        ));
-    }
-
-    // Always capture stdout, suppress stderr in non-verbose mode
-    if !verbose {
-        command.stderr(Stdio::null());
-    }
-    let output = command.output()?;
-    if verbose {
-        if !output.stdout.is_empty() {
-            debug!("Git stdout: {}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            debug!("Git stderr: {}", String::from_utf8_lossy(&output.stderr));
-        }
-    }
-    Ok(output)
+    info!("✓ Step 2: Successfully pushed {} for store '{}' to remote '{}'", trunk_ref_name, store_name, remote_name);
+    info!("✅ Trunk store '{}' pushed successfully", store_name);
 }

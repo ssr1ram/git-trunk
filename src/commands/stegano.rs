@@ -1,15 +1,16 @@
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::{Command, exit};
 use clap::Parser;
 use log::{debug, error, info};
+use crate::utils::run_git_command;
 
 #[derive(Parser, Debug)]
-#[command(about = "Remove all traces of .trunk from the main repository")]
+#[command(about = "Remove all traces of .trunk/<store> from the main repository's working directory. If .trunk becomes empty, it and its .gitignore entry are also removed.")]
 pub struct SteganoArgs {}
 
-pub fn run(_args: &SteganoArgs, verbose: bool) {
+pub fn run(_args: &SteganoArgs, _remote_name: &str, store_name: &str, verbose: bool) {
     // Step 1: Check if we are in a Git repository
     debug!("Step 1: Checking if inside a Git repository");
     let git_check_output = run_git_command(
@@ -18,10 +19,7 @@ pub fn run(_args: &SteganoArgs, verbose: bool) {
             .arg("--is-inside-work-tree"),
         verbose,
     );
-    if git_check_output
-        .map(|output| !output.status.success())
-        .unwrap_or(true)
-    {
+    if git_check_output.map(|output| !output.status.success()).unwrap_or(true) {
         error!("stegano can only be invoked inside a git repo");
         exit(1);
     }
@@ -39,100 +37,115 @@ pub fn run(_args: &SteganoArgs, verbose: bool) {
         error!("Failed to get git repository root: {}", e);
         exit(1);
     });
-    let repo_root = String::from_utf8_lossy(&repo_root_output.stdout).trim().to_string();
-    if repo_root.is_empty() {
+    let repo_root_str = String::from_utf8_lossy(&repo_root_output.stdout).trim().to_string();
+    if repo_root_str.is_empty() {
         error!("Git repository root is empty. Ensure you are in a valid Git repository.");
         exit(1);
     }
-    info!("✓ Step 2: Repository root found at {}", repo_root);
+    let repo_root = Path::new(&repo_root_str);
+    info!("✓ Step 2: Repository root found at {}", repo_root.display());
 
-    // Step 3: Remove .trunk from .gitignore
-    debug!("Step 3: Checking .gitignore for .trunk entry");
-    let gitignore_path = Path::new(&repo_root).join(".gitignore");
-    if gitignore_path.exists() {
-        let mut gitignore_content = String::new();
-        let mut gitignore_file = File::open(&gitignore_path).unwrap_or_else(|e| {
-            error!("Failed to read .gitignore: {}", e);
-            exit(1);
-        });
-        gitignore_file
-            .read_to_string(&mut gitignore_content)
-            .expect("Failed to read .gitignore content");
+    // Step 3: Remove .trunk/<store_name> directory
+    let store_dir_relative_path = format!(".trunk/{}", store_name);
+    let trunk_store_dir = repo_root.join(&store_dir_relative_path);
+    let mut trunk_store_dir_handled = false;
 
-        let updated_content: String = gitignore_content
-            .lines()
-            .filter(|line| line.trim() != ".trunk")
-            .collect::<Vec<&str>>()
-            .join("\n");
-
-        if updated_content != gitignore_content {
-            debug!("Step 3: Removing .trunk from .gitignore");
-            let mut gitignore_file = OpenOptions::new()
-                .write(true)
-                .truncate(true)
-                .open(&gitignore_path)
-                .unwrap_or_else(|e| {
-                    error!("Failed to open .gitignore for writing: {}", e);
-                    exit(1);
-                });
-            if !updated_content.is_empty() {
-                writeln!(gitignore_file, "{}", updated_content)
-                    .expect("Failed to write updated .gitignore content");
+    debug!("Step 3: Checking for {} directory for store '{}'", store_dir_relative_path, store_name);
+    if trunk_store_dir.exists() {
+        debug!("Step 3: Removing {} directory for store '{}'", store_dir_relative_path, store_name);
+        match fs::remove_dir_all(&trunk_store_dir) {
+            Ok(_) => {
+                info!("✓ Step 3: {} directory removed for store '{}'", store_dir_relative_path, store_name);
+                trunk_store_dir_handled = true;
             }
-            info!("✓ Step 3: Removed .trunk from .gitignore");
+            Err(e) => {
+                error!("Failed to remove {} directory: {}. Further cleanup of .trunk and .gitignore might be skipped.", store_dir_relative_path, e);
+                // Do not exit, but trunk_store_dir_handled remains false
+            }
+        }
+    } else {
+        debug!("Step 3: No {} directory found for store '{}'", store_dir_relative_path, store_name);
+        info!("= Step 3: No {} directory to remove for store '{}'", store_dir_relative_path, store_name);
+        trunk_store_dir_handled = true; // Considered handled as it's already gone
+    }
+
+    // Step 4: Conditionally remove parent .trunk directory and .gitignore entry
+    if trunk_store_dir_handled {
+        let parent_trunk_dir = repo_root.join(".trunk");
+        let mut cleanup_gitignore_entry = false;
+
+        if parent_trunk_dir.exists() {
+            match fs::read_dir(&parent_trunk_dir) {
+                Ok(mut entries) => {
+                    if entries.next().is_none() { // Parent .trunk directory is empty
+                        debug!("Step 4a: Parent .trunk directory is empty. Attempting to remove it.");
+                        if let Err(e) = fs::remove_dir(&parent_trunk_dir) {
+                            error!("Warning: Failed to remove empty parent .trunk directory at {}: {}", parent_trunk_dir.display(), e);
+                        } else {
+                            info!("✓ Step 4a: Empty parent .trunk directory removed.");
+                            cleanup_gitignore_entry = true; // Signal to remove from .gitignore
+                        }
+                    } else {
+                        debug!("Step 4a: Parent .trunk directory is not empty (other stores may exist). Retaining it and its .gitignore entry.");
+                    }
+                },
+                Err(e) => {
+                    error!("Warning: Could not read parent .trunk directory contents at {}: {}", parent_trunk_dir.display(), e);
+                }
+            }
         } else {
-            debug!("Step 3: No .trunk entry found in .gitignore");
-            info!("= Step 3: No .trunk entry to remove from .gitignore");
+            // Parent .trunk directory doesn't exist, implies it was already cleaned up or this was the only effective store.
+            debug!("Step 4a: Parent .trunk directory does not exist. Proceeding with .gitignore cleanup attempt.");
+            cleanup_gitignore_entry = true;
+        }
+
+        if cleanup_gitignore_entry {
+            debug!("Step 4b: Attempting to remove '.trunk' from .gitignore");
+            let gitignore_path = repo_root.join(".gitignore");
+            if gitignore_path.exists() {
+                let mut gitignore_content = String::new();
+                match File::open(&gitignore_path) {
+                    Ok(mut file) => {
+                        if let Err(e) = file.read_to_string(&mut gitignore_content) {
+                            error!("Failed to read .gitignore content: {}. Skipping .gitignore cleanup.", e);
+                        } else {
+                            let updated_content: String = gitignore_content
+                                .lines()
+                                .filter(|line| line.trim() != ".trunk")
+                                .collect::<Vec<&str>>()
+                                .join("\n");
+
+                            if updated_content != gitignore_content {
+                                match OpenOptions::new().write(true).truncate(true).open(&gitignore_path) {
+                                    Ok(mut file) => {
+                                        if let Err(e) = writeln!(file, "{}", updated_content) {
+                                            error!("Failed to write updated .gitignore content: {}. Manual cleanup of .gitignore may be needed.",e);
+                                        } else {
+                                            info!("✓ Step 4b: Removed '.trunk' entry from .gitignore.");
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to open .gitignore for writing: {}. Manual cleanup of .gitignore may be needed.", e);
+                                    }
+                                }
+                            } else {
+                                debug!("Step 4b: No '.trunk' entry found in .gitignore, or file was already clean.");
+                                info!("= Step 4b: No '.trunk' entry to remove from .gitignore.");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                         error!("Failed to open .gitignore for reading: {}. Skipping .gitignore cleanup.", e);
+                    }
+                }
+            } else {
+                debug!("Step 4b: No .gitignore file found.");
+                info!("= Step 4b: No .gitignore file to modify.");
+            }
         }
     } else {
-        debug!("Step 3: No .gitignore file found");
-        info!("= Step 3: No .gitignore file exists");
+        info!("Skipping .trunk parent directory and .gitignore cleanup due to issues removing the store directory {}.", store_dir_relative_path);
     }
 
-    // Step 4: Remove .trunk directory
-    debug!("Step 4: Checking for .trunk directory");
-    let trunk_dir = Path::new(&repo_root).join(".trunk");
-    if trunk_dir.exists() {
-        debug!("Step 4: Removing .trunk directory");
-        fs::remove_dir_all(&trunk_dir).unwrap_or_else(|e| {
-            error!("Failed to remove .trunk directory: {}", e);
-            exit(1);
-        });
-        info!("✓ Step 4: .trunk directory removed");
-    } else {
-        debug!("Step 4: No .trunk directory found");
-        info!("= Step 4: No .trunk directory to remove");
-    }
-
-    info!("✅ Stegano completed successfully: All traces of .trunk removed");
-}
-
-fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {
-    // Check if git is available
-    let git_check = Command::new("git")
-        .arg("--version")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
-    if git_check.is_err() || !git_check.unwrap().success() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "Git executable not found or failed to execute",
-        ));
-    }
-
-    // Always capture stdout, suppress stderr in non-verbose mode
-    if !verbose {
-        command.stderr(std::process::Stdio::null());
-    }
-    let output = command.output()?;
-    if verbose {
-        if !output.stdout.is_empty() {
-            debug!("Git stdout: {}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            debug!("Git stderr: {}", String::from_utf8_lossy(&output.stderr));
-        }
-    }
-    Ok(output)
+    info!("✅ Stegano for store '{}' completed.", store_name);
 }

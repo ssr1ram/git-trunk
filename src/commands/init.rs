@@ -1,18 +1,19 @@
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 use std::path::Path;
-use std::process::{Command, exit, Stdio};
+use std::process::{Command, exit};
 use clap::Parser;
 use log::{debug, error, info};
+use crate::utils::run_git_command;
 
 #[derive(Parser, Debug)]
-#[command(about = "Initialize the .trunk directory")]
+#[command(about = "Initialize a .trunk/<store> directory")]
 pub struct InitArgs {
-    #[arg(long, help = "Force initialization, overwriting existing .trunk directory")]
+    #[arg(long, help = "Force initialization, overwriting existing .trunk/<store> directory")]
     force: bool,
 }
 
-pub fn run(args: &InitArgs, verbose: bool) {
+pub fn run(args: &InitArgs, _remote_name: &str, store_name: &str, verbose: bool) {
     // Step 1: Check if we are in a Git repository
     debug!("Step 1: Checking if inside a Git repository");
     let git_check_output = run_git_command(
@@ -49,7 +50,7 @@ pub fn run(args: &InitArgs, verbose: bool) {
     }
     info!("✓ Step 2: Repository root found at {}", repo_root);
 
-    // Step 3: Ensure .trunk is in .gitignore
+    // Step 3: Ensure .trunk is in .gitignore (parent directory)
     debug!("Step 3: Checking .gitignore for .trunk entry");
     let gitignore_path = Path::new(&repo_root).join(".gitignore");
     let mut gitignore_content = String::new();
@@ -84,134 +85,120 @@ pub fn run(args: &InitArgs, verbose: bool) {
         info!("✓ Step 3: Added .trunk to .gitignore");
     } else {
         debug!("Step 3: .trunk already in .gitignore");
+        info!("= Step 3: .trunk already in .gitignore");
+    }
+    
+    // Step 4: Create .trunk parent directory if it doesn't exist
+    let parent_trunk_dir = Path::new(&repo_root).join(".trunk");
+    if !parent_trunk_dir.exists() {
+        debug!("Step 4a: Creating parent .trunk directory");
+        fs::create_dir(&parent_trunk_dir).unwrap_or_else(|e| {
+            error!("Failed to create .trunk parent directory: {}", e);
+            exit(1);
+        });
+        info!("✓ Step 4a: .trunk parent directory created at {:?}", parent_trunk_dir);
     }
 
-    // Step 4: Create .trunk directory
-    debug!("Step 4: Checking for .trunk directory");
-    let trunk_dir = Path::new(&repo_root).join(".trunk");
-    if trunk_dir.exists() {
+
+    // Step 5: Create .trunk/<store_name> directory
+    let store_dir_name = format!(".trunk/{}", store_name);
+    debug!("Step 5: Checking for {} directory", store_dir_name);
+    let trunk_store_dir = Path::new(&repo_root).join(&store_dir_name);
+    if trunk_store_dir.exists() {
         if args.force {
-            debug!("Step 4: .trunk exists, --force specified, removing existing directory");
-            fs::remove_dir_all(&trunk_dir).unwrap_or_else(|e| {
-                error!("Failed to remove existing .trunk directory: {}", e);
+            debug!("Step 5: {} exists, --force specified, removing existing directory", store_dir_name);
+            fs::remove_dir_all(&trunk_store_dir).unwrap_or_else(|e| {
+                error!("Failed to remove existing {} directory: {}", store_dir_name, e);
                 exit(1);
             });
-            info!("✓ Step 4: Existing .trunk directory removed");
+            info!("✓ Step 5: Existing {} directory removed", store_dir_name);
         } else {
-            info!("= Step 4: Trunk is already initialized in this repository");
+            info!("= Step 5: Trunk store '{}' is already initialized in this repository at {}", store_name, store_dir_name);
             return;
         }
     }
-    debug!("Step 4: Creating .trunk directory");
-    fs::create_dir(&trunk_dir).unwrap_or_else(|e| {
-        error!("Failed to create .trunk directory: {}", e);
+    debug!("Step 5: Creating {} directory", store_dir_name);
+    fs::create_dir(&trunk_store_dir).unwrap_or_else(|e| {
+        error!("Failed to create {} directory: {}", store_dir_name, e);
         exit(1);
     });
-    info!("✓ Step 4: .trunk directory created");
+    info!("✓ Step 5: {} directory created", store_dir_name);
 
-    // Step 5: Create .trunk/readme.md
-    debug!("Step 5: Creating .trunk/readme.md");
-    let readme_path = trunk_dir.join("readme.md");
+    // Step 6: Create .trunk/<store_name>/readme.md
+    debug!("Step 6: Creating {}/readme.md", store_dir_name);
+    let readme_path = trunk_store_dir.join("readme.md");
     let mut readme_file = File::create(&readme_path).unwrap_or_else(|e| {
-        error!("Failed to create readme.md: {}", e);
+        error!("Failed to create readme.md in {}: {}", store_dir_name, e);
         exit(1);
     });
     writeln!(
         readme_file,
-        "# Trunk Documents\n\nThis directory stores repository-wide documents managed by git-trunk."
+        "# Trunk Documents for Store: {}\n\nThis directory stores repository-wide documents for the '{}' store, managed by git-trunk.",
+        store_name, store_name
     )
     .expect("Failed to write to readme.md");
-    info!("✓ Step 5: Created .trunk/readme.md");
+    info!("✓ Step 6: Created {}/readme.md", store_dir_name);
 
-    // Step 6: Initialize Git in .trunk
-    debug!("Step 6: Initializing Git repository in .trunk");
+    // Step 7: Initialize Git in .trunk/<store_name>
+    debug!("Step 7: Initializing Git repository in {}", store_dir_name);
     let init_status = run_git_command(
         Command::new("git")
             .arg("init")
-            .current_dir(&trunk_dir),
+            .current_dir(&trunk_store_dir),
         verbose,
     )
     .unwrap_or_else(|e| {
-        error!("Failed to run git init in .trunk: {}", e);
+        error!("Failed to run git init in {}: {}", store_dir_name, e);
         exit(1);
     })
     .status;
     if !init_status.success() {
-        error!("git init failed in .trunk");
+        error!("git init failed in {}", store_dir_name);
         exit(1);
     }
-    info!("✓ Step 6: Git repository initialized");
+    info!("✓ Step 7: Git repository initialized in {}", store_dir_name);
 
-    // Step 7: Stage files in .trunk
-    debug!("Step 7: Staging files in .trunk");
+    // Step 8: Stage files in .trunk/<store_name>
+    debug!("Step 8: Staging files in {}", store_dir_name);
     let stage_status = run_git_command(
         Command::new("git")
             .arg("add")
             .arg("-A")
-            .current_dir(&trunk_dir),
+            .current_dir(&trunk_store_dir),
         verbose,
     )
     .unwrap_or_else(|e| {
-        error!("Failed to run git add in .trunk: {}", e);
+        error!("Failed to run git add in {}: {}", store_dir_name, e);
         exit(1);
     })
     .status;
     if !stage_status.success() {
-        error!("git add failed in .trunk");
+        error!("git add failed in {}", store_dir_name);
         exit(1);
     }
-    info!("✓ Step 7: Files staged");
+    info!("✓ Step 8: Files staged in {}", store_dir_name);
 
-    // Step 8: Commit files in .trunk
-    debug!("Step 8: Committing initial trunk changes");
+    // Step 9: Commit files in .trunk/<store_name>
+    debug!("Step 9: Committing initial changes for store '{}'", store_name);
+    let commit_message = format!("Initial commit for store '{}'", store_name);
     let commit_status = run_git_command(
         Command::new("git")
             .arg("commit")
             .arg("-m")
-            .arg("Initial trunk commit")
-            .current_dir(&trunk_dir),
+            .arg(&commit_message)
+            .current_dir(&trunk_store_dir),
         verbose,
     )
     .unwrap_or_else(|e| {
-        error!("Failed to run git commit in .trunk: {}", e);
+        error!("Failed to run git commit in {}: {}", store_dir_name, e);
         exit(1);
     })
     .status;
     if !commit_status.success() {
-        error!("git commit failed in .trunk");
+        error!("git commit failed in {}", store_dir_name);
         exit(1);
     }
-    info!("✓ Step 8: Initial commit created");
+    info!("✓ Step 9: Initial commit created for store '{}'", store_name);
 
-    info!("✅ Trunk initialized successfully");
-}
-
-fn run_git_command(command: &mut Command, verbose: bool) -> io::Result<std::process::Output> {
-    // Check if git is available
-    let git_check = Command::new("git")
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
-    if git_check.is_err() || !git_check.unwrap().success() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "Git executable not found or failed to execute",
-        ));
-    }
-
-    // Always capture stdout, suppress stderr in non-verbose mode
-    if !verbose {
-        command.stderr(Stdio::null());
-    }
-    let output = command.output()?;
-    if verbose {
-        if !output.stdout.is_empty() {
-            debug!("Git stdout: {}", String::from_utf8_lossy(&output.stdout));
-        }
-        if !output.stderr.is_empty() {
-            debug!("Git stderr: {}", String::from_utf8_lossy(&output.stderr));
-        }
-    }
-    Ok(output)
+    info!("✅ Trunk store '{}' initialized successfully at {}", store_name, store_dir_name);
 }
