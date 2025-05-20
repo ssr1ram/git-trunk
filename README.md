@@ -2,15 +2,20 @@
 
 git trunk is a CLI tool for managing repository-wide files that are common across all branches. 
 
-It helps you 
+Use it if you want to
 - Hold a single version of information that is common across all branches such as issues, bugs, changelog, history etc.
+- Have information in a public repo that is not indexed by a search engine
 - Get steganographic i.e. conceal information in a public git repo that is non-evident.
-
 
 ## about 
 **`git-trunk` CLI: Core Functionality**
 
-`git-trunk` is a command-line interface tool designed to manage repository-wide documents and metadata, which are stored within a dedicated `.trunk/<store>` directory inside a Git repository. These "stores" are then tracked in the main repository using a special Git reference, typically `refs/trunk/<store>`. The primary aim is to keep certain information (like issues, changelogs, design documents) separate from the main project's branching history but still versioned and shareable within the same repository. It also offers a way to "hide" these files from the working directory on demand (steganography).
+`git-trunk` is a command-line interface tool designed to manage repository-wide documents and metadata, which are stored within a dedicated `.trunk/<store>` directory inside a Git repository. 
+
+These "stores" are then tracked in the main repository using a special Git reference, typically `refs/trunk/<store>`. The primary aim is to keep certain information (issues, changelogs, design documents) separate from the main project's branching history but still versioned and shareable within the same repository. It also offers a way to "hide" these files from the working directory (steganography).
+
+Within each git store you can use standard git commands as each store is a regular git repository in its own right.
+
 
 **Global Options:**
 
@@ -26,13 +31,13 @@ It helps you
 2.  Clone the repository:
     ```bash
     git clone https://github.com/ssr1ram/git-trunk.git
-    cd git-trunk
     ```
 3.  Install the binary:
     ```bash
+    cd git-trunk
     cargo install --path .
     ```
-    This will make `your-binary-name` available in your shell.
+    This will make `git-cli` available in your shell.
 
 **Directly from GitHub**
 
@@ -109,8 +114,6 @@ graph TD
     classDef state fill:#e0f0ff,stroke:#333,stroke-width:1px,color:#000;
     class A,C,F,G,J,K,M state;
 ```
-
-
 
 
 ## commands
@@ -197,7 +200,6 @@ graph TD
 
 - Custom git refs are created under the trunk namespace i.e. `refs/trunk/<store>`
 - Each store is a separate git repo
-- The git objects of each store are copied over from `.trunk/<store>` in commit and brought back to `.trunk/<store>` on checkout
+- The git objects of each store are copied over from `.trunk/<store>` on commit and brought back to `.trunk/<store>` on checkout
 - github and other git servers typically only bring in `refs/heads`, `refs/remotes` and `refs/tags` when you clone a repo
-
-
+- 'git trunk info --all' will find all `refs/trunk/*` stores and display info. Useful if you forget the store name.
