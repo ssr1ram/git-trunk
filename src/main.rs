@@ -56,6 +56,8 @@ enum Commands {
     Stegano(commands::stegano::SteganoArgs),
     /// Removes all traces of a git-trunk store, including .trunk/<store> and refs/trunk/<store> locally and remotely
     Delete(commands::delete::DeleteArgs),
+    /// Displays information about the git-trunk setup and stores
+    Info(commands::info::InfoArgs),
 }
 
 fn init_logger(verbose: bool) {
@@ -89,5 +91,6 @@ fn main() {
         Commands::Hooks(args) => commands::hooks::run(&args, remote_name, store_name, cli.verbose),
         Commands::Stegano(args) => commands::stegano::run(&args, remote_name, store_name, cli.verbose),
         Commands::Delete(args) => commands::delete::run(&args, remote_name, store_name, cli.verbose),
+        Commands::Info(args) => commands::info::run(&args, remote_name, store_name, cli.verbose),
     }
 }
