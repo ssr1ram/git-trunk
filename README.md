@@ -22,23 +22,23 @@ It helps you
 
 ```mermaid
 graph TD
-    A[Start: Git Repository] --> B(<code>git trunk init --store _name_</code>);
+    A[Start: Git Repository] --> B(<code>git trunk init <br>--store _name_</code>);
     B -- Creates .trunk/_name_ & local ref after first inner commit --> C{Work/Edit files in .trunk/_name_};
-    C --> D(<code>git trunk commit --store _name_</code>);
+    C --> D(<code>git trunk commit <br>--store _name_</code>);
     D -- Updates local refs/trunk/_name_ --> C;
-    D --> E(<code>git trunk push --store _name_</code>);
+    D --> E(<code>git trunk push <br>--store _name_</code>);
     E -- Pushes refs/trunk/_name_ to remote --> F{Remote refs/trunk/_name_ exists};
 
     F --> G[New Clone / Collaborator Setup];
-    G --> H(<code>git trunk checkout --store _name_</code>);
+    G --> H(<code>git trunk checkout <br>--store _name_</code>);
     H -- Creates .trunk/_name_ from ref --> C;
 
-    C --> I(<code>git trunk stegano --store _name_</code>);
+    C --> I(<code>git trunk stegano <br>--store _name_</code>);
     I -- Removes .trunk/_name_ directory --> J{Trunk files hidden from working directory<br/>refs/trunk/_name_ persists};
     J --> H
 
     subgraph "Definitive Removal of Store"
-        K((Store _name_ Exists<br/>via init, commit, checkout, or even just ref from stegano)) --> L(<code>git trunk delete --store _name_</code>);
+        K((Store _name_ Exists<br/>via init, commit, checkout, or even just ref from stegano)) --> L(<code>git trunk delete <br>--store _name_</code>);
         L -- Removes .trunk/_name_ (if present),<br/>local refs/trunk/_name_,<br/>and remote refs/trunk/_name_ --> M[Store _name_ Completely Removed];
     end
     
