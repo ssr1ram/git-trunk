@@ -22,25 +22,24 @@ It helps you
 
 ```mermaid
 graph TD
-    A[Start: Git Repository] --> B(<code>git trunk init --store <name></code>);
-    B -- Creates .trunk/<name> & local ref after first inner commit --> C{Work/Edit files in .trunk/<name>};
-    C --> D(<code>git trunk commit --store <name></code>);
-    D -- Updates local refs/trunk/<name> --> C;
-    D --> E(<code>git trunk push --store <name></code>);
-    E -- Pushes refs/trunk/<name> to remote --> F{Remote refs/trunk/<name> exists};
+    A[Start: Git Repository] --> B(<code>git trunk init --store _name_</code>);
+    B -- Creates .trunk/_name_ & local ref after first inner commit --> C{Work/Edit files in .trunk/_name_};
+    C --> D(<code>git trunk commit --store _name_</code>);
+    D -- Updates local refs/trunk/_name_ --> C;
+    D --> E(<code>git trunk push --store _name_</code>);
+    E -- Pushes refs/trunk/_name_ to remote --> F{Remote refs/trunk/_name_ exists};
 
     F --> G[New Clone / Collaborator Setup];
-    G --> H(<code>git trunk checkout --store <name></code>);
-    H -- Creates .trunk/<name> from ref --> C;
+    G --> H(<code>git trunk checkout --store _name_</code>);
+    H -- Creates .trunk/_name_ from ref --> C;
 
-    C --> I(<code>git trunk stegano --store <name></code>);
-    I -- Removes .trunk/<name> directory --> J{Trunk files hidden from working directory<br/>refs/trunk/<name> persists};
+    C --> I(<code>git trunk stegano --store _name_</code>);
+    I -- Removes .trunk/_name_ directory --> J{Trunk files hidden from working directory<br/>refs/trunk/_name_ persists};
     J --> H
 
     subgraph "Definitive Removal of Store"
-        style DeletionPath fill:#ffe0e0,stroke:#c00
-        K((Store <name> Exists<br/>via init, commit, checkout, or even just ref from stegano)) --> L(<code>git trunk delete --store <name></code>);
-        L -- Removes .trunk/<name> (if present),<br/>local refs/trunk/<name>,<br/>and remote refs/trunk/<name> --> M[Store <name> Completely Removed];
+        K((Store _name_ Exists<br/>via init, commit, checkout, or even just ref from stegano)) --> L(<code>git trunk delete --store _name_</code>);
+        L -- Removes .trunk/_name_ (if present),<br/>local refs/trunk/_name_,<br/>and remote refs/trunk/_name_ --> M[Store _name_ Completely Removed];
     end
     
     %% Connections to Deletion Trigger State
