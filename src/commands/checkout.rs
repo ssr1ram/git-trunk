@@ -134,9 +134,27 @@ pub fn run(args: &CheckoutArgs, remote_name: &str, store_name: &str, verbose: bo
     }
     if gitignore_needs_update {
         debug!("✨ Step 6: Adding .trunk to .gitignore");
-        let mut gitignore_file = OpenOptions::new().create(true).append(true).open(&gitignore_path).unwrap_or_else(|e| {
-            error!("❌ Failed to open .gitignore: {}", e); exit(1);
+        let mut gitignore_file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .append(true)
+            .open(&gitignore_path)
+            .unwrap_or_else(|e| {
+                error!("❌ Failed to open .gitignore: {}", e);
+                exit(1);
+            });
+
+        // Check if the file is non-empty and doesn't end with a newline
+        let mut contents = String::new();
+        gitignore_file.read_to_string(&mut contents).unwrap_or_else(|e| {
+            error!("❌ Failed to read .gitignore: {}", e);
+            exit(1);
         });
+        if !contents.is_empty() && !contents.ends_with('\n') {
+            writeln!(gitignore_file, "").expect("Failed to write newline to .gitignore");
+        }
+
         writeln!(gitignore_file, ".trunk").expect("Failed to write .trunk to .gitignore");
         info!("✓ Step 6: Added .trunk to .gitignore");
     } else {
