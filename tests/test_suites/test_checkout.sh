@@ -148,10 +148,12 @@ assert_commit_hash_matches() {
 test_checkout_from_local_ref() {
   echo "INFO: Starting test_checkout_from_local_ref..."
   local test_subdir="$TEST_DIR/checkout_local_ref"
-  rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
 
-  git init -b main > /dev/null
-  "$GIT_TRUNK_CMD" init
+  (
+    rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
+
+    git init -b main > /dev/null
+    "$GIT_TRUNK_CMD" init
   assert_success "$GIT_TRUNK_CMD init"
   local original_content="Original content for local ref test"
   echo "$original_content" > .trunk/main/readme.md
@@ -170,8 +172,9 @@ test_checkout_from_local_ref() {
   assert_file_exists ".trunk/main/readme.md"
   assert_grep "$original_content" ".trunk/main/readme.md" "Original content in checked-out readme.md"
   assert_git_repo ".trunk/main"
-  assert_commit_hash_matches ".trunk/main" "HEAD" "." "refs/trunk/main"
-  assert_grep ".trunk" ".gitignore"
+    assert_commit_hash_matches ".trunk/main" "HEAD" "." "refs/trunk/main"
+    assert_grep ".trunk" ".gitignore"
+  )
 
   echo "INFO: test_checkout_from_local_ref PASSED"
 }
@@ -179,22 +182,24 @@ test_checkout_from_local_ref() {
 test_checkout_from_remote_ref() {
   echo "INFO: Starting test_checkout_from_remote_ref..."
   local test_env_dir="$TEST_DIR/checkout_remote_ref"
-  rm -rf "$test_env_dir" && mkdir -p "$test_env_dir"
 
-  local repo_source_path="$test_env_dir/repo_source"
-  local remote_repo_git_path="$test_env_dir/remote_repo.git" # Bare repo
+  (
+    rm -rf "$test_env_dir" && mkdir -p "$test_env_dir"
+
+    local repo_source_path="$test_env_dir/repo_source"
+    local remote_repo_git_path="$test_env_dir/remote_repo.git" # Bare repo
   local repo_clone_path="$test_env_dir/repo_clone"
 
-  # Setup remote_repo.git
-  mkdir -p "$remote_repo_git_path"
-  git init --bare "$remote_repo_git_path" > /dev/null
-  echo "INFO: Initialized bare remote repo at $remote_repo_git_path"
+    # Setup remote_repo.git
+    mkdir -p "$remote_repo_git_path"
+    git init --bare "$remote_repo_git_path" > /dev/null
+    echo "INFO: Initialized bare remote repo at $remote_repo_git_path"
 
-  # Setup repo_source
-  mkdir -p "$repo_source_path" && cd "$repo_source_path"
-  git init -b main > /dev/null
-  git remote add origin ../remote_repo.git # Relative path
-  "$GIT_TRUNK_CMD" init
+    # Setup repo_source
+    mkdir -p "$repo_source_path" && cd "$repo_source_path"
+    git init -b main > /dev/null
+    git remote add origin ../remote_repo.git # Relative path
+    "$GIT_TRUNK_CMD" init
   assert_success "repo_source: $GIT_TRUNK_CMD init"
   local remote_content="Content from remote ref"
   echo "$remote_content" > .trunk/main/readme.md
@@ -203,15 +208,15 @@ test_checkout_from_remote_ref() {
   "$GIT_TRUNK_CMD" push
   assert_success "repo_source: $GIT_TRUNK_CMD push"
   assert_remote_ref_exists "." "origin" "refs/trunk/main"
-  local source_trunk_hash 
-  source_trunk_hash=$(get_commit_hash "." "refs/trunk/main")
-  cd .. # Back to test_env_dir
+    local source_trunk_hash
+    source_trunk_hash=$(get_commit_hash "." "refs/trunk/main")
+    cd .. # Back to test_env_dir
 
-  # Setup repo_clone
-  mkdir -p "$repo_clone_path" && cd "$repo_clone_path"
-  git init -b main > /dev/null
-  git remote add origin ../remote_repo.git # Relative path
-  assert_ref_does_not_exist "." "refs/trunk/main" # Ensure not local initially
+    # Setup repo_clone
+    mkdir -p "$repo_clone_path" && cd "$repo_clone_path"
+    git init -b main > /dev/null
+    git remote add origin ../remote_repo.git # Relative path
+    assert_ref_does_not_exist "." "refs/trunk/main" # Ensure not local initially
   assert_dir_does_not_exist ".trunk"
   echo "INFO: Set up repo_clone at $(pwd)"
 
@@ -225,10 +230,11 @@ test_checkout_from_remote_ref() {
   assert_grep "$remote_content" ".trunk/main/readme.md"
   assert_git_repo ".trunk/main"
   assert_commit_hash_matches ".trunk/main" "HEAD" "$remote_repo_git_path" "refs/trunk/main" # Compare clone's store with remote ref
-  # Also verify local ref was created and matches
-  assert_ref_exists "." "refs/trunk/main"
-  assert_commit_hash_matches "." "refs/trunk/main" "$remote_repo_git_path" "refs/trunk/main"
-  assert_grep ".trunk" ".gitignore"
+    # Also verify local ref was created and matches
+    assert_ref_exists "." "refs/trunk/main"
+    assert_commit_hash_matches "." "refs/trunk/main" "$remote_repo_git_path" "refs/trunk/main"
+    assert_grep ".trunk" ".gitignore"
+  )
 
   echo "INFO: test_checkout_from_remote_ref PASSED"
 }
@@ -236,10 +242,12 @@ test_checkout_from_remote_ref() {
 test_checkout_force_overwrite() {
   echo "INFO: Starting test_checkout_force_overwrite..."
   local test_subdir="$TEST_DIR/checkout_force"
-  rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
 
-  git init -b main > /dev/null
-  "$GIT_TRUNK_CMD" init
+  (
+    rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
+
+    git init -b main > /dev/null
+    "$GIT_TRUNK_CMD" init
   assert_success "$GIT_TRUNK_CMD init"
   local original_readme_content="Original readme for force test"
   echo "$original_readme_content" > .trunk/main/readme.md
@@ -261,8 +269,9 @@ test_checkout_force_overwrite() {
   assert_dir_exists ".trunk/main"
   assert_file_exists ".trunk/main/readme.md" # Original file should still be there
   assert_grep "$original_readme_content" ".trunk/main/readme.md"
-  assert_file_does_not_exist "$extra_file" # The extra file should be gone
-  assert_commit_hash_matches ".trunk/main" "HEAD" "." "refs/trunk/main"
+    assert_file_does_not_exist "$extra_file" # The extra file should be gone
+    assert_commit_hash_matches ".trunk/main" "HEAD" "." "refs/trunk/main"
+  )
 
   echo "INFO: test_checkout_force_overwrite PASSED"
 }
@@ -270,34 +279,36 @@ test_checkout_force_overwrite() {
 test_checkout_specific_store() {
   echo "INFO: Starting test_checkout_specific_store..."
   local test_env_dir="$TEST_DIR/checkout_specific_store"
-  rm -rf "$test_env_dir" && mkdir -p "$test_env_dir"
 
-  local repo_source_path="$test_env_dir/repo_source"
-  local remote_repo_git_path="$test_env_dir/remote_repo.git"
+  (
+    rm -rf "$test_env_dir" && mkdir -p "$test_env_dir"
+
+    local repo_source_path="$test_env_dir/repo_source"
+    local remote_repo_git_path="$test_env_dir/remote_repo.git"
   local repo_clone_path="$test_env_dir/repo_clone"
   local store_name="docs"
 
-  mkdir -p "$remote_repo_git_path" && git init --bare "$remote_repo_git_path" > /dev/null
-  echo "INFO: Initialized bare remote repo at $remote_repo_git_path"
+    mkdir -p "$remote_repo_git_path" && git init --bare "$remote_repo_git_path" > /dev/null
+    echo "INFO: Initialized bare remote repo at $remote_repo_git_path"
 
-  mkdir -p "$repo_source_path" && cd "$repo_source_path"
-  git init -b main > /dev/null
-  git remote add origin ../remote_repo.git # Relative path
-  "$GIT_TRUNK_CMD" init --store "$store_name"
+    mkdir -p "$repo_source_path" && cd "$repo_source_path"
+    git init -b main > /dev/null
+    git remote add origin ../remote_repo.git # Relative path
+    "$GIT_TRUNK_CMD" init --store "$store_name"
   assert_success "repo_source: $GIT_TRUNK_CMD init --store $store_name"
   local store_content="Content for $store_name store"
   echo "$store_content" > ".trunk/$store_name/index.html"
   "$GIT_TRUNK_CMD" commit --force --store "$store_name" -m "Commit for $store_name store"
   assert_success "repo_source: $GIT_TRUNK_CMD commit --force --store $store_name"
-  "$GIT_TRUNK_CMD" push --store "$store_name"
-  assert_success "repo_source: $GIT_TRUNK_CMD push --store $store_name"
-  assert_remote_ref_exists "." "origin" "refs/trunk/$store_name"
-  cd ..
+    "$GIT_TRUNK_CMD" push --store "$store_name"
+    assert_success "repo_source: $GIT_TRUNK_CMD push --store $store_name"
+    assert_remote_ref_exists "." "origin" "refs/trunk/$store_name"
+    cd ..
 
-  mkdir -p "$repo_clone_path" && cd "$repo_clone_path"
-  git init -b main > /dev/null
-  git remote add origin ../remote_repo.git # Relative path
-  assert_dir_does_not_exist ".trunk"
+    mkdir -p "$repo_clone_path" && cd "$repo_clone_path"
+    git init -b main > /dev/null
+    git remote add origin ../remote_repo.git # Relative path
+    assert_dir_does_not_exist ".trunk"
   echo "INFO: Set up repo_clone for specific store test at $(pwd)"
 
   # Action: git trunk checkout --store <store_name>
@@ -309,9 +320,10 @@ test_checkout_specific_store() {
   assert_file_exists ".trunk/$store_name/index.html"
   assert_grep "$store_content" ".trunk/$store_name/index.html"
   assert_git_repo ".trunk/$store_name"
-  assert_commit_hash_matches ".trunk/$store_name" "HEAD" "$remote_repo_git_path" "refs/trunk/$store_name"
-  assert_ref_exists "." "refs/trunk/$store_name"
-  assert_grep ".trunk" ".gitignore" # Should still add .trunk to gitignore
+    assert_commit_hash_matches ".trunk/$store_name" "HEAD" "$remote_repo_git_path" "refs/trunk/$store_name"
+    assert_ref_exists "." "refs/trunk/$store_name"
+    assert_grep ".trunk" ".gitignore" # Should still add .trunk to gitignore
+  )
 
   echo "INFO: test_checkout_specific_store PASSED"
 }
@@ -319,18 +331,20 @@ test_checkout_specific_store() {
 test_checkout_non_existent_ref() {
   echo "INFO: Starting test_checkout_non_existent_ref..."
   local test_subdir="$TEST_DIR/checkout_non_existent"
-  rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
-  
-  local remote_repo_git_path="$test_subdir/remote_for_non_existent.git"
-  mkdir -p "$remote_repo_git_path" && git init --bare "$remote_repo_git_path" > /dev/null
 
-  git init -b main > /dev/null
-  # remote_repo_git_path is $test_subdir/remote_for_non_existent.git
-  # and we are in $test_subdir, so the relative path is just the basename.
-  git remote add origin remote_for_non_existent.git 
-  echo "INFO: Initialized repo with remote, but no trunk refs exist locally or remotely."
+  (
+    rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
 
-  local non_existent_store="non_existent_store"
+    local remote_repo_git_path="$test_subdir/remote_for_non_existent.git"
+    mkdir -p "$remote_repo_git_path" && git init --bare "$remote_repo_git_path" > /dev/null
+
+    git init -b main > /dev/null
+    # remote_repo_git_path is $test_subdir/remote_for_non_existent.git
+    # and we are in $test_subdir, so the relative path is just the basename.
+    git remote add origin remote_for_non_existent.git
+    echo "INFO: Initialized repo with remote, but no trunk refs exist locally or remotely."
+
+    local non_existent_store="non_existent_store"
   # Action: git trunk checkout --store non_existent_store
   output=$("$GIT_TRUNK_CMD" checkout --store "$non_existent_store" 2>&1) || true
   assert_failure "$GIT_TRUNK_CMD checkout --store $non_existent_store"
@@ -341,9 +355,10 @@ test_checkout_non_existent_ref() {
     echo "$output"
     # exit 1 # Optional: strict check for error message
   fi
-  echo "SUCCESS: Command failed and appropriate error message fragment found."
-  assert_dir_does_not_exist ".trunk/$non_existent_store"
-  assert_dir_does_not_exist ".trunk" # .trunk should not be created if checkout fails
+    echo "SUCCESS: Command failed and appropriate error message fragment found."
+    assert_dir_does_not_exist ".trunk/$non_existent_store"
+    assert_dir_does_not_exist ".trunk" # .trunk should not be created if checkout fails
+  )
 
   echo "INFO: test_checkout_non_existent_ref PASSED"
 }

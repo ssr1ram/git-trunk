@@ -85,12 +85,14 @@ assert_ref_exists() {
 test_stegano_single_store_others_exist() {
   echo "INFO: Starting test_stegano_single_store_others_exist..."
   local test_subdir="$TEST_DIR/stegano_single_store"
-  rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
 
-  git init -b main > /dev/null
-  echo "INFO: Initialized Git repo in $(pwd)"
+  (
+    rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
 
-  # Setup store s1
+    git init -b main > /dev/null
+    echo "INFO: Initialized Git repo in $(pwd)"
+
+    # Setup store s1
   "$GIT_TRUNK_CMD" init --store s1
   assert_success "$GIT_TRUNK_CMD init --store s1"
   echo "content s1" > .trunk/s1/data.txt
@@ -121,9 +123,10 @@ test_stegano_single_store_others_exist() {
   assert_dir_does_not_exist ".trunk/s1"
   assert_dir_exists ".trunk/s2" "Store s2 directory still exists"
   assert_dir_exists ".trunk" "Parent .trunk directory still exists"
-  assert_grep ".trunk" ".gitignore" ".gitignore still contains .trunk entry"
-  assert_ref_exists "." "refs/trunk/s1" "Ref refs/trunk/s1 still exists"
-  assert_ref_exists "." "refs/trunk/s2" "Ref refs/trunk/s2 still exists"
+    assert_grep ".trunk" ".gitignore" ".gitignore still contains .trunk entry"
+    assert_ref_exists "." "refs/trunk/s1" "Ref refs/trunk/s1 still exists"
+    assert_ref_exists "." "refs/trunk/s2" "Ref refs/trunk/s2 still exists"
+  )
 
   echo "INFO: test_stegano_single_store_others_exist PASSED"
 }
@@ -131,12 +134,14 @@ test_stegano_single_store_others_exist() {
 test_stegano_last_store() {
   echo "INFO: Starting test_stegano_last_store..."
   local test_subdir="$TEST_DIR/stegano_last_store"
-  rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
 
-  git init -b main > /dev/null
-  echo "INFO: Initialized Git repo in $(pwd)"
+  (
+    rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
 
-  # Setup store main
+    git init -b main > /dev/null
+    echo "INFO: Initialized Git repo in $(pwd)"
+
+    # Setup store main
   "$GIT_TRUNK_CMD" init --store main
   assert_success "$GIT_TRUNK_CMD init --store main"
   echo "content main" > .trunk/main/data.txt
@@ -164,8 +169,9 @@ test_stegano_last_store() {
     assert_not_grep "^\.trunk/?$" ".gitignore" ".gitignore no longer contains active .trunk entry"
   else
     echo "SUCCESS: .gitignore file does not exist, so .trunk entry is not present."
-  fi
-  assert_ref_exists "." "refs/trunk/main" "Ref refs/trunk/main still exists"
+    fi
+    assert_ref_exists "." "refs/trunk/main" "Ref refs/trunk/main still exists"
+  )
 
   echo "INFO: test_stegano_last_store PASSED"
 }
@@ -173,12 +179,14 @@ test_stegano_last_store() {
 test_stegano_no_trunk_dir() {
   echo "INFO: Starting test_stegano_no_trunk_dir..."
   local test_subdir="$TEST_DIR/stegano_no_trunk_dir"
-  rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
 
-  git init -b main > /dev/null
-  echo "INFO: Initialized Git repo in $(pwd)"
+  (
+    rm -rf "$test_subdir" && mkdir -p "$test_subdir" && cd "$test_subdir"
 
-  # Setup: init, commit, checkout, then stegano to remove .trunk
+    git init -b main > /dev/null
+    echo "INFO: Initialized Git repo in $(pwd)"
+
+    # Setup: init, commit, checkout, then stegano to remove .trunk
   "$GIT_TRUNK_CMD" init
   assert_success "$GIT_TRUNK_CMD init"
   echo "initial" > .trunk/main/data.txt
@@ -201,8 +209,9 @@ test_stegano_no_trunk_dir() {
     echo "SUCCESS: Command reported nothing to do or .trunk not found, as expected."
   else
     echo "INFO: Command output was: $output (no specific 'nothing to do' message checked)"
-  fi
-  assert_dir_does_not_exist ".trunk" # Still shouldn't exist
+    fi
+    assert_dir_does_not_exist ".trunk" # Still shouldn't exist
+  )
 
   echo "INFO: test_stegano_no_trunk_dir PASSED"
 }
