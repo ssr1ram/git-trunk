@@ -124,8 +124,8 @@ test_delete_store_local_and_remote() {
 
   mkdir -p "$main_repo_path" && cd "$main_repo_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path"
-  echo "INFO: Initialized main_repo at $(pwd)"
+  git remote add origin ../remote_repo.git # Relative path
+  echo "INFO: Initialized main_repo at $(pwd) with remote ../remote_repo.git"
 
   "$GIT_TRUNK_CMD" init
   assert_success "$GIT_TRUNK_CMD init"
@@ -177,8 +177,8 @@ test_delete_specific_store() {
 
   mkdir -p "$main_repo_path" && cd "$main_repo_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path"
-  echo "INFO: Initialized main_repo at $(pwd)"
+  git remote add origin ../remote_repo.git # Relative path
+  echo "INFO: Initialized main_repo at $(pwd) with remote ../remote_repo.git"
 
   # Setup storeA
   "$GIT_TRUNK_CMD" init --store storeA
@@ -236,8 +236,8 @@ test_delete_store_local_only() {
 
   mkdir -p "$main_repo_path" && cd "$main_repo_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path" # Configure remote
-  echo "INFO: Initialized main_repo at $(pwd)"
+  git remote add origin ../remote_repo.git # Relative path
+  echo "INFO: Initialized main_repo at $(pwd) with remote ../remote_repo.git"
 
   "$GIT_TRUNK_CMD" init --store local_only
   echo "local data" > .trunk/local_only/data.txt
@@ -279,7 +279,7 @@ test_delete_store_remote_only() {
   # Setup in repo_A: init, commit, push store_name
   mkdir -p "$repo_A_path" && cd "$repo_A_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path"
+  git remote add origin ../remote_repo.git # Relative path
   "$GIT_TRUNK_CMD" init --store "$store_name"
   echo "remote data" > ".trunk/$store_name/data.txt"
   "$GIT_TRUNK_CMD" commit --force --store "$store_name" -m "Commit $store_name"
@@ -291,7 +291,7 @@ test_delete_store_remote_only() {
   # Setup in repo_B: clone/setup, ensure ref is NOT local
   mkdir -p "$repo_B_path" && cd "$repo_B_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path"
+  git remote add origin ../remote_repo.git # Relative path
   # Fetch to know about remote refs, but don't create local tracking or trunk refs
   git fetch origin
   assert_remote_ref_exists "." "origin" "refs/trunk/$store_name" # Exists on remote

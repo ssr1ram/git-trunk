@@ -193,7 +193,7 @@ test_checkout_from_remote_ref() {
   # Setup repo_source
   mkdir -p "$repo_source_path" && cd "$repo_source_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path" # Absolute path
+  git remote add origin ../remote_repo.git # Relative path
   "$GIT_TRUNK_CMD" init
   assert_success "repo_source: $GIT_TRUNK_CMD init"
   local remote_content="Content from remote ref"
@@ -210,7 +210,7 @@ test_checkout_from_remote_ref() {
   # Setup repo_clone
   mkdir -p "$repo_clone_path" && cd "$repo_clone_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path" # Absolute path
+  git remote add origin ../remote_repo.git # Relative path
   assert_ref_does_not_exist "." "refs/trunk/main" # Ensure not local initially
   assert_dir_does_not_exist ".trunk"
   echo "INFO: Set up repo_clone at $(pwd)"
@@ -282,7 +282,7 @@ test_checkout_specific_store() {
 
   mkdir -p "$repo_source_path" && cd "$repo_source_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path"
+  git remote add origin ../remote_repo.git # Relative path
   "$GIT_TRUNK_CMD" init --store "$store_name"
   assert_success "repo_source: $GIT_TRUNK_CMD init --store $store_name"
   local store_content="Content for $store_name store"
@@ -296,7 +296,7 @@ test_checkout_specific_store() {
 
   mkdir -p "$repo_clone_path" && cd "$repo_clone_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path"
+  git remote add origin ../remote_repo.git # Relative path
   assert_dir_does_not_exist ".trunk"
   echo "INFO: Set up repo_clone for specific store test at $(pwd)"
 
@@ -325,7 +325,9 @@ test_checkout_non_existent_ref() {
   mkdir -p "$remote_repo_git_path" && git init --bare "$remote_repo_git_path" > /dev/null
 
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_git_path" # Add remote but don't push anything to it
+  # remote_repo_git_path is $test_subdir/remote_for_non_existent.git
+  # and we are in $test_subdir, so the relative path is just the basename.
+  git remote add origin remote_for_non_existent.git 
   echo "INFO: Initialized repo with remote, but no trunk refs exist locally or remotely."
 
   local non_existent_store="non_existent_store"

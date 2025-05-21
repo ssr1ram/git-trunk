@@ -80,14 +80,20 @@ test_push_basic() {
   mkdir -p "$main_repo_path"
   cd "$main_repo_path" # Important: all git commands run from here unless -C is used
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_path" # Use absolute path for remote
-  echo "INFO: Initialized main repo at $(pwd) and added remote 'origin' -> $remote_repo_path"
+  git remote add origin ../remote_repo.git # Use relative path
+  echo "INFO: Initialized main repo at $(pwd) and added remote 'origin' -> ../remote_repo.git"
 
   "$GIT_TRUNK_CMD" init
   assert_success "$GIT_TRUNK_CMD init"
   echo "Push basic changes" >> .trunk/main/readme.md
   "$GIT_TRUNK_CMD" commit --force -m "Test commit for basic push"
   assert_success "$GIT_TRUNK_CMD commit --force"
+
+  echo "INFO: Current directory: $(pwd)"
+  echo "INFO: Git remote configuration:"
+  git remote -v
+  echo "INFO: Local refs:"
+  git show-ref
 
   # Action: git trunk push
   "$GIT_TRUNK_CMD" push
@@ -114,8 +120,8 @@ test_push_specific_store() {
   mkdir -p "$main_repo_path"
   cd "$main_repo_path"
   git init -b main > /dev/null
-  git remote add origin "$remote_repo_path"
-  echo "INFO: Initialized main repo at $(pwd) and added remote 'origin'"
+  git remote add origin ../remote_repo.git # Use relative path
+  echo "INFO: Initialized main repo at $(pwd) and added remote 'origin' -> ../remote_repo.git"
 
   "$GIT_TRUNK_CMD" init # Default 'main' store
   assert_success "$GIT_TRUNK_CMD init"
@@ -156,9 +162,9 @@ test_push_specific_remote() {
   mkdir -p "$main_repo_path"
   cd "$main_repo_path"
   git init -b main > /dev/null
-  git remote add origin "$origin_remote_path"
-  git remote add alternate "$alt_remote_path"
-  echo "INFO: Initialized main repo at $(pwd) and added remotes 'origin' and 'alternate'"
+  git remote add origin ../origin_repo.git # Use relative path
+  git remote add alternate ../alt_repo.git # Use relative path
+  echo "INFO: Initialized main repo at $(pwd) and added remotes 'origin' -> ../origin_repo.git and 'alternate' -> ../alt_repo.git"
 
   "$GIT_TRUNK_CMD" init
   assert_success "$GIT_TRUNK_CMD init"
